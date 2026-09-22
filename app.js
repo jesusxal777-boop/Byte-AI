@@ -1,256 +1,1420 @@
-// ===== BYTE AI - App =====
-const { createClient } = supabase;
+/* =========================================================
+   BYTE AI
+   DreamByte Studios
+========================================================= */
 
-let sb;
+const {
+    createClient
+} = window.supabase;
+
+
+/* =========================================================
+   SUPABASE
+========================================================= */
+
+const supabaseClient = createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+);
+
+
+/* =========================================================
+   STATE
+========================================================= */
+
 let currentUser = null;
+let isIncognito = false;
+
 let currentConversationId = null;
-let messagesCache = [];
 
-// Init
-document.addEventListener("DOMContentLoaded", () => {
-  if (SUPABASE_ANON_KEY === "PEGA_AQUI_TU_ANON_KEY") {
-    alert("Por favor configura tu SUPABASE_ANON_KEY en config.js");
-  }
-  sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let conversationHistory = [];
 
-  // Theme
-  const savedTheme = localStorage.getItem("byte-theme") || "liquid-glass-dark";
-  setTheme(savedTheme);
-  document.getElementById("theme-select").value = savedTheme;
-  document.getElementById("theme-select").addEventListener("change", (e) => {
-    setTheme(e.target.value);
-    localStorage.setItem("byte-theme", e.target.value);
-  });
+const LOCAL_STORAGE_KEY = "byte_ai_incognito_conversations";
+const THEME_STORAGE_KEY = "byte_ai_theme";
 
-  // Auth check
-  sb.auth.getSession().then(({ data: { session } }) => {
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const loginScreen =
+    document.getElementById("login-screen");
+
+const appScreen =
+    document.getElementById("app-screen");
+
+const authMessage =
+    document.getElementById("auth-message");
+
+const messages =
+    document.getElementById("messages");
+
+const chatForm =
+    document.getElementById("chat-form");
+
+const messageInput =
+    document.getElementById("message-input");
+
+const sendButton =
+    document.getElementById("send-button");
+
+const conversationList =
+    document.getElementById("conversation-list");
+
+const settingsPanel =
+    document.getElementById("settings-panel");
+
+const previewModal =
+    document.getElementById("preview-modal");
+
+const htmlPreview =
+    document.getElementById("html-preview");
+
+
+/* =========================================================
+   INITIALIZATION
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    loadTheme();
+
+    setupEvents();
+
+    const {
+        data: {
+            session
+        }
+    } = await supabaseClient.auth.getSession();
+
     if (session) {
-      currentUser = session.user;
-      showChat();
-    } else {
-      showLogin();
-    }
-  });
 
-  sb.auth.onAuthStateChange((_event, session) => {
-    if (session) {
-      currentUser = session.user;
-      showChat();
-    } else {
-      currentUser = null;
-      showLogin();
-    }
-  });
+        currentUser =
+            session.user;
 
-  // Buttons
-  document.getElementById("btn-google").addEventListener("click", signInWithGoogle);
-  document.getElementById("btn-logout").addEventListener("click", signOut);
-  document.getElementById("btn-new-chat").addEventListener("click", newConversation);
-  document.getElementById("btn-send").addEventListener("click", sendMessage);
-  document.getElementById("user-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+        isIncognito = false;
+
+        enterApplication();
+
     }
-  });
+
 });
 
-function setTheme(theme) {
-  document.body.className = "theme-" + theme;
+
+/* =========================================================
+   EVENTS
+========================================================= */
+
+function setupEvents() {
+
+    document
+        .getElementById("google-login")
+        .addEventListener(
+            "click",
+            loginWithGoogle
+        );
+
+    document
+        .getElementById("guest-login")
+        .addEventListener(
+            "click",
+            enterIncognito
+        );
+
+    document
+        .getElementById("email-login-form")
+        .addEventListener(
+            "submit",
+            loginWithEmail
+        );
+
+    document
+        .getElementById("signup-button")
+        .addEventListener(
+            "click",
+            signup
+        );
+
+    document
+        .getElementById("logout-button")
+        .addEventListener(
+            "click",
+            logout
+        );
+
+    document
+        .getElementById("new-chat")
+        .addEventListener(
+            "click",
+            newConversation
+        );
+
+    document
+        .getElementById("settings-button")
+        .addEventListener(
+            "click",
+            () => {
+                settingsPanel.classList.toggle("hidden");
+            }
+        );
+
+    document
+        .getElementById("close-settings")
+        .addEventListener(
+            "click",
+            () => {
+                settingsPanel.classList.add("hidden");
+            }
+        );
+
+    document
+        .getElementById("theme-selector")
+        .addEventListener(
+            "change",
+            changeTheme
+        );
+
+    document
+        .getElementById("clear-incognito")
+        .addEventListener(
+            "click",
+            clearIncognito
+        );
+
+    document
+        .getElementById("mobile-menu")
+        .addEventListener(
+            "click",
+            () => {
+                document
+                    .getElementById("sidebar")
+                    .classList.toggle("open");
+            }
+        );
+
+    document
+        .getElementById("close-preview")
+        .addEventListener(
+            "click",
+            closePreview
+        );
+
+    chatForm.addEventListener(
+        "submit",
+        sendMessage
+    );
+
+    messageInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                chatForm.requestSubmit();
+
+            }
+
+        }
+    );
+
+    document
+        .querySelectorAll(".suggestion")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    messageInput.value =
+                        button.dataset.prompt;
+
+                    messageInput.focus();
+
+                }
+            );
+
+        });
+
+    messages.addEventListener(
+        "click",
+        handleMessageActions
+    );
+
 }
+
+
+/* =========================================================
+   AUTH
+========================================================= */
+
+async function loginWithGoogle() {
+
+    const {
+        error
+    } = await supabaseClient.auth.signInWithOAuth({
+
+        provider: "google",
+
+        options: {
+
+            redirectTo:
+                window.location.origin +
+                window.location.pathname
+
+        }
+
+    });
+
+    if (error) {
+
+        showAuthError(error.message);
+
+    }
+
+}
+
+
+async function loginWithEmail(event) {
+
+    event.preventDefault();
+
+    const email =
+        document
+            .getElementById("email")
+            .value
+            .trim();
+
+    const password =
+        document
+            .getElementById("password")
+            .value;
+
+    setAuthMessage("Iniciando sesión...");
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
+
+    if (error) {
+
+        showAuthError(error.message);
+
+        return;
+
+    }
+
+    currentUser =
+        data.user;
+
+    isIncognito = false;
+
+    enterApplication();
+
+}
+
+
+async function signup() {
+
+    const email =
+        document
+            .getElementById("email")
+            .value
+            .trim();
+
+    const password =
+        document
+            .getElementById("password")
+            .value;
+
+    if (!email || !password) {
+
+        showAuthError(
+            "Escribe un correo y una contraseña."
+        );
+
+        return;
+
+    }
+
+    setAuthMessage(
+        "Creando cuenta..."
+    );
+
+    const {
+        error
+    } =
+        await supabaseClient.auth.signUp({
+            email,
+            password
+        });
+
+    if (error) {
+
+        showAuthError(error.message);
+
+        return;
+
+    }
+
+    setAuthMessage(
+        "Cuenta creada. Revisa tu correo para confirmarla."
+    );
+
+}
+
+
+async function logout() {
+
+    if (isIncognito) {
+
+        currentUser = null;
+        isIncognito = false;
+
+        showLogin();
+
+        return;
+
+    }
+
+    await supabaseClient.auth.signOut();
+
+    currentUser = null;
+
+    isIncognito = false;
+
+    showLogin();
+
+}
+
+
+/* =========================================================
+   INCOGNITO
+========================================================= */
+
+function enterIncognito() {
+
+    currentUser = null;
+
+    isIncognito = true;
+
+    conversationHistory = [];
+
+    currentConversationId =
+        crypto.randomUUID();
+
+    enterApplication();
+
+    loadIncognitoConversations();
+
+}
+
+
+function getIncognitoConversations() {
+
+    try {
+
+        return JSON.parse(
+            localStorage.getItem(
+                LOCAL_STORAGE_KEY
+            ) || "[]"
+        );
+
+    } catch {
+
+        return [];
+
+    }
+
+}
+
+
+function saveIncognitoConversation() {
+
+    const conversations =
+        getIncognitoConversations();
+
+    const existingIndex =
+        conversations.findIndex(
+            conversation =>
+                conversation.id ===
+                currentConversationId
+        );
+
+    const conversation = {
+
+        id:
+            currentConversationId,
+
+        title:
+            getConversationTitle(),
+
+        messages:
+            conversationHistory,
+
+        updatedAt:
+            Date.now()
+
+    };
+
+    if (existingIndex >= 0) {
+
+        conversations[existingIndex] =
+            conversation;
+
+    } else {
+
+        conversations.unshift(
+            conversation
+        );
+
+    }
+
+    localStorage.setItem(
+        LOCAL_STORAGE_KEY,
+        JSON.stringify(
+            conversations.slice(0, 50)
+        )
+    );
+
+    loadIncognitoConversations();
+
+}
+
+
+function loadIncognitoConversations() {
+
+    if (!isIncognito)
+        return;
+
+    conversationList.innerHTML = "";
+
+    const conversations =
+        getIncognitoConversations();
+
+    conversations.forEach(
+        conversation => {
+
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "conversation-item";
+
+            item.textContent =
+                conversation.title ||
+                "Nueva conversación";
+
+            item.addEventListener(
+                "click",
+                () => {
+
+                    currentConversationId =
+                        conversation.id;
+
+                    conversationHistory =
+                        conversation.messages || [];
+
+                    renderHistory();
+
+                }
+            );
+
+            conversationList.appendChild(
+                item
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   APPLICATION
+========================================================= */
+
+function enterApplication() {
+
+    loginScreen.classList.add(
+        "hidden"
+    );
+
+    appScreen.classList.remove(
+        "hidden"
+    );
+
+    if (isIncognito) {
+
+        document
+            .getElementById("account-info")
+            .innerHTML =
+            "👻 <strong>Modo incógnito</strong>";
+
+        document
+            .getElementById("logout-button")
+            .textContent =
+            "↩ Salir del incógnito";
+
+    } else {
+
+        document
+            .getElementById("account-info")
+            .innerHTML =
+            `👤 ${
+                escapeHTML(
+                    currentUser?.email ||
+                    "Usuario"
+                )
+            }`;
+
+        document
+            .getElementById("logout-button")
+            .textContent =
+            "↪ Cerrar sesión";
+
+    }
+
+    if (!conversationHistory.length) {
+
+        newConversation();
+
+    }
+
+}
+
 
 function showLogin() {
-  document.getElementById("login-screen").classList.remove("hidden");
-  document.getElementById("chat-screen").classList.add("hidden");
+
+    appScreen.classList.add(
+        "hidden"
+    );
+
+    loginScreen.classList.remove(
+        "hidden"
+    );
+
+    conversationHistory = [];
+
 }
 
-function showChat() {
-  document.getElementById("login-screen").classList.add("hidden");
-  document.getElementById("chat-screen").classList.remove("hidden");
 
-  // User info
-  const meta = currentUser.user_metadata || {};
-  document.getElementById("user-name").textContent = meta.full_name || meta.name || currentUser.email?.split("@")[0] || "Usuario";
-  document.getElementById("user-avatar").src = meta.avatar_url || "https://api.dicebear.com/7.x/identicon/svg?seed=" + currentUser.id;
+/* =========================================================
+   CONVERSATIONS
+========================================================= */
 
-  loadConversations();
+function newConversation() {
+
+    currentConversationId =
+        crypto.randomUUID();
+
+    conversationHistory = [];
+
+    document
+        .getElementById("chat-title")
+        .textContent =
+        "Nueva conversación";
+
+    messages.innerHTML = `
+        <div class="welcome-message">
+
+            <div class="welcome-logo">B</div>
+
+            <h1>¿Qué hacemos hoy?</h1>
+
+            <p>
+                Soy Byte, el asistente de DreamByte Studios.
+            </p>
+
+            <div class="suggestions">
+
+                <button
+                    class="suggestion"
+                    data-prompt="Dame ideas para un proyecto tecnológico."
+                >
+                    💡 Ideas para proyectos
+                </button>
+
+                <button
+                    class="suggestion"
+                    data-prompt="Ayúdame a programar una aplicación."
+                >
+                    💻 Programar una app
+                </button>
+
+                <button
+                    class="suggestion"
+                    data-prompt="Ayúdame a escribir un guion."
+                >
+                    🎬 Crear un guion
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+    messages
+        .querySelectorAll(".suggestion")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    messageInput.value =
+                        button.dataset.prompt;
+
+                    messageInput.focus();
+
+                }
+            );
+
+        });
+
 }
 
-async function signInWithGoogle() {
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin + window.location.pathname
-    }
-  });
-  if (error) alert("Error al iniciar sesión: " + error.message);
-}
 
-async function signOut() {
-  await sb.auth.signOut();
-}
+/* =========================================================
+   SEND MESSAGE
+========================================================= */
 
-async function loadConversations() {
-  const { data, error } = await sb
-    .from("conversations")
-    .select("*")
-    .order("updated_at", { ascending: false });
+async function sendMessage(event) {
 
-  const list = document.getElementById("conversations-list");
-  list.innerHTML = "";
+    event.preventDefault();
 
-  if (error || !data) return;
+    const text =
+        messageInput.value.trim();
 
-  data.forEach((c) => {
-    const div = document.createElement("div");
-    div.className = "conv-item" + (c.id === currentConversationId ? " active" : "");
-    div.textContent = c.title || "Conversación";
-    div.onclick = () => openConversation(c.id, c.title);
-    list.appendChild(div);
-  });
-}
+    if (!text)
+        return;
 
-async function newConversation() {
-  const { data, error } = await sb
-    .from("conversations")
-    .insert({ user_id: currentUser.id, title: "Nueva conversación" })
-    .select()
-    .single();
+    messageInput.value = "";
 
-  if (error) {
-    console.error(error);
-    return;
-  }
-  currentConversationId = data.id;
-  messagesCache = [];
-  document.getElementById("messages").innerHTML = "";
-  document.getElementById("chat-title").textContent = data.title;
-  loadConversations();
-}
+    removeWelcome();
 
-async function openConversation(id, title) {
-  currentConversationId = id;
-  document.getElementById("chat-title").textContent = title || "Conversación";
-  loadConversations();
+    addMessage(
+        "user",
+        text
+    );
 
-  const { data } = await sb
-    .from("messages")
-    .select("*")
-    .eq("conversation_id", id)
-    .order("created_at", { ascending: true });
+    conversationHistory.push({
 
-  messagesCache = data || [];
-  renderMessages();
-}
+        role: "user",
 
-function renderMessages() {
-  const container = document.getElementById("messages");
-  container.innerHTML = "";
-  messagesCache.forEach((m) => {
-    const div = document.createElement("div");
-    div.className = "message " + m.role;
-    div.innerHTML = `<div class="role">${m.role === "user" ? "Tú" : "Byte AI"}</div>${escapeHtml(m.content)}`;
-    container.appendChild(div);
-  });
-  container.scrollTop = container.scrollHeight;
-}
+        content: text
 
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-async function sendMessage() {
-  const input = document.getElementById("user-input");
-  const text = input.value.trim();
-  if (!text) return;
-
-  if (!currentConversationId) {
-    await newConversation();
-  }
-
-  input.value = "";
-  input.style.height = "auto";
-
-  // Add user message
-  const userMsg = { role: "user", content: text };
-  messagesCache.push(userMsg);
-  renderMessages();
-
-  // Save user message
-  await sb.from("messages").insert({
-    conversation_id: currentConversationId,
-    role: "user",
-    content: text
-  });
-
-  // Update title if first message
-  if (messagesCache.filter(m => m.role === "user").length === 1) {
-    const title = text.slice(0, 40) + (text.length > 40 ? "..." : "");
-    await sb.from("conversations").update({ title, updated_at: new Date().toISOString() }).eq("id", currentConversationId);
-    document.getElementById("chat-title").textContent = title;
-    loadConversations();
-  }
-
-  // Show typing
-  const typing = document.createElement("div");
-  typing.className = "message assistant";
-  typing.id = "typing";
-  typing.innerHTML = `<div class="role">Byte AI</div><div class="typing"><span></span><span></span><span></span></div>`;
-  document.getElementById("messages").appendChild(typing);
-  document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
-
-  document.getElementById("btn-send").disabled = true;
-
-  try {
-    const history = messagesCache.map(m => ({ role: m.role, content: m.content }));
-
-    const { data: { session } } = await sb.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ messages: history })
     });
 
-    const data = await res.json();
-    let reply = "Lo siento, no pude generar una respuesta.";
+    setLoading(true);
 
-    if (data.choices && data.choices[0]?.message?.content) {
-      reply = data.choices[0].message.content;
-    } else if (data.error) {
-      reply = "Error: " + data.error + " (¿Configuraste GROQ_API_KEY en Supabase?)";
+    const loadingId =
+        addLoadingMessage();
+
+    try {
+
+        let response;
+
+        if (isIncognito) {
+
+            /*
+             * El modo incógnito no tiene JWT.
+             *
+             * Por eso aquí hacemos una petición directa
+             * solamente si tu backend permite acceso anónimo.
+             *
+             * Si tu Edge Function mantiene verify_jwt=true,
+             * deberás crear posteriormente un endpoint separado
+             * para invitados con rate limiting.
+             */
+
+            response =
+                await fetch(
+                    `${SUPABASE_URL}/functions/v1/chat`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            messages:
+                                conversationHistory
+                        })
+                    }
+                );
+
+        } else {
+
+            const {
+                data: {
+                    session
+                }
+            } =
+                await supabaseClient.auth.getSession();
+
+            if (!session) {
+
+                throw new Error(
+                    "La sesión ha expirado."
+                );
+
+            }
+
+            response =
+                await fetch(
+                    `${SUPABASE_URL}/functions/v1/chat`,
+                    {
+                        method: "POST",
+
+                        headers: {
+
+                            "Content-Type":
+                                "application/json",
+
+                            "Authorization":
+                                `Bearer ${session.access_token}`
+
+                        },
+
+                        body: JSON.stringify({
+                            messages:
+                                conversationHistory
+                        })
+                    }
+                );
+
+        }
+
+
+        if (!response.ok) {
+
+            const errorText =
+                await response.text();
+
+            throw new Error(
+                errorText ||
+                `Error HTTP ${response.status}`
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const answer =
+            data?.choices?.[0]?.message?.content;
+
+
+        if (!answer) {
+
+            throw new Error(
+                "Byte no devolvió una respuesta."
+            );
+
+        }
+
+
+        removeLoadingMessage(
+            loadingId
+        );
+
+        addMessage(
+            "assistant",
+            answer
+        );
+
+        conversationHistory.push({
+
+            role: "assistant",
+
+            content: answer
+
+        });
+
+
+        if (isIncognito) {
+
+            saveIncognitoConversation();
+
+        }
+
+
+        updateConversationTitle();
+
+    } catch (error) {
+
+        removeLoadingMessage(
+            loadingId
+        );
+
+        addMessage(
+            "assistant",
+            `⚠️ No pude completar la respuesta.\n\n${error.message}`
+        );
+
+    } finally {
+
+        setLoading(false);
+
     }
 
-    // Remove typing
-    document.getElementById("typing")?.remove();
-
-    messagesCache.push({ role: "assistant", content: reply });
-    renderMessages();
-
-    await sb.from("messages").insert({
-      conversation_id: currentConversationId,
-      role: "assistant",
-      content: reply
-    });
-
-    await sb.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", currentConversationId);
-
-  } catch (err) {
-    document.getElementById("typing")?.remove();
-    const errMsg = "Error de conexión: " + err.message;
-    messagesCache.push({ role: "assistant", content: errMsg });
-    renderMessages();
-  }
-
-  document.getElementById("btn-send").disabled = false;
 }
 
-// Auto-resize textarea
-document.getElementById("user-input")?.addEventListener("input", function () {
-  this.style.height = "auto";
-  this.style.height = Math.min(this.scrollHeight, 150) + "px";
-});
+
+/* =========================================================
+   MESSAGES
+========================================================= */
+
+function addMessage(role, content) {
+
+    const wrapper =
+        document.createElement("article");
+
+    wrapper.className =
+        `message ${role}`;
+
+    const avatar =
+        role === "assistant"
+            ? "B"
+            : "👤";
+
+    wrapper.innerHTML = `
+
+        <div class="message-avatar">
+            ${avatar}
+        </div>
+
+        <div class="message-content">
+            ${
+                role === "assistant"
+                    ? renderMarkdown(content)
+                    : escapeHTML(content).replace(
+                        /\n/g,
+                        "<br>"
+                    )
+            }
+        </div>
+
+    `;
+
+    messages.appendChild(wrapper);
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+    return wrapper;
+
+}
+
+
+function renderHistory() {
+
+    messages.innerHTML = "";
+
+    conversationHistory.forEach(
+        message => {
+
+            addMessage(
+                message.role,
+                message.content
+            );
+
+        }
+    );
+
+}
+
+
+function removeWelcome() {
+
+    const welcome =
+        messages.querySelector(
+            ".welcome-message"
+        );
+
+    if (welcome)
+        welcome.remove();
+
+}
+
+
+function addLoadingMessage() {
+
+    const id =
+        "loading-" +
+        Date.now();
+
+    const element =
+        document.createElement("article");
+
+    element.id = id;
+
+    element.className =
+        "message assistant loading-message";
+
+    element.innerHTML = `
+
+        <div class="message-avatar">
+            B
+        </div>
+
+        <div class="message-content">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </div>
+
+    `;
+
+    messages.appendChild(
+        element
+    );
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+    return id;
+
+}
+
+
+function removeLoadingMessage(id) {
+
+    document
+        .getElementById(id)
+        ?.remove();
+
+}
+
+
+/* =========================================================
+   MARKDOWN + CODE
+========================================================= */
+
+function renderMarkdown(content) {
+
+    const raw =
+        marked.parse(content, {
+            breaks: true
+        });
+
+
+    const clean =
+        DOMPurify.sanitize(
+            raw,
+            {
+                ADD_TAGS: [
+                    "button"
+                ],
+
+                ADD_ATTR: [
+                    "class",
+                    "data-code",
+                    "data-language"
+                ]
+            }
+        );
+
+
+    const container =
+        document.createElement("div");
+
+    container.innerHTML =
+        clean;
+
+
+    container
+        .querySelectorAll("pre")
+        .forEach(pre => {
+
+            const code =
+                pre.querySelector("code");
+
+            if (!code)
+                return;
+
+            const language =
+                getLanguage(
+                    code.className
+                );
+
+            const codeText =
+                code.textContent;
+
+
+            const toolbar =
+                document.createElement("div");
+
+            toolbar.className =
+                "code-toolbar";
+
+
+            const label =
+                document.createElement("span");
+
+            label.textContent =
+                language || "code";
+
+
+            const actions =
+                document.createElement("div");
+
+
+            const copyButton =
+                document.createElement("button");
+
+            copyButton.className =
+                "code-action";
+
+            copyButton.dataset.code =
+                codeText;
+
+            copyButton.textContent =
+                "📋 Copiar";
+
+
+            actions.appendChild(
+                copyButton
+            );
+
+
+            if (
+                language === "html" ||
+                language === "html5"
+            ) {
+
+                const runButton =
+                    document.createElement("button");
+
+                runButton.className =
+                    "code-action run-html";
+
+                runButton.dataset.code =
+                    codeText;
+
+                runButton.textContent =
+                    "▶ Ejecutar";
+
+                actions.appendChild(
+                    runButton
+                );
+
+            }
+
+
+            toolbar.appendChild(
+                label
+            );
+
+            toolbar.appendChild(
+                actions
+            );
+
+
+            pre.parentNode.insertBefore(
+                toolbar,
+                pre
+            );
+
+        });
+
+
+    return container.innerHTML;
+
+}
+
+
+function getLanguage(className = "") {
+
+    const match =
+        className.match(
+            /language-([\w-]+)/
+        );
+
+    return match
+        ? match[1].toLowerCase()
+        : "";
+
+}
+
+
+/* =========================================================
+   CODE ACTIONS
+========================================================= */
+
+async function handleMessageActions(event) {
+
+    const copyButton =
+        event.target.closest(
+            ".code-action:not(.run-html)"
+        );
+
+    if (copyButton) {
+
+        try {
+
+            await navigator.clipboard.writeText(
+                copyButton.dataset.code
+            );
+
+            copyButton.textContent =
+                "✓ Copiado";
+
+            setTimeout(() => {
+
+                copyButton.textContent =
+                    "📋 Copiar";
+
+            }, 1500);
+
+        } catch {
+
+            copyButton.textContent =
+                "No disponible";
+
+        }
+
+        return;
+
+    }
+
+
+    const runButton =
+        event.target.closest(
+            ".run-html"
+        );
+
+    if (runButton) {
+
+        openHTMLPreview(
+            runButton.dataset.code
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   HTML PREVIEW
+========================================================= */
+
+function openHTMLPreview(code) {
+
+    /*
+     * sandbox="allow-scripts" permite que el HTML tenga
+     * JavaScript propio, pero evita darle acceso al documento
+     * principal de Byte AI.
+     */
+
+    htmlPreview.srcdoc = code;
+
+    previewModal.classList.remove(
+        "hidden"
+    );
+
+}
+
+
+function closePreview() {
+
+    htmlPreview.srcdoc = "";
+
+    previewModal.classList.add(
+        "hidden"
+    );
+
+}
+
+
+/* =========================================================
+   THEME
+========================================================= */
+
+function changeTheme(event) {
+
+    const theme =
+        event.target.value;
+
+    document.body.className =
+        theme;
+
+    localStorage.setItem(
+        THEME_STORAGE_KEY,
+        theme
+    );
+
+}
+
+
+function loadTheme() {
+
+    const saved =
+        localStorage.getItem(
+            THEME_STORAGE_KEY
+        );
+
+    if (!saved)
+        return;
+
+    document.body.className =
+        saved;
+
+    const selector =
+        document.getElementById(
+            "theme-selector"
+        );
+
+    if (selector)
+        selector.value = saved;
+
+}
+
+
+/* =========================================================
+   INCÓGNITO CLEANUP
+========================================================= */
+
+function clearIncognito() {
+
+    if (!isIncognito)
+        return;
+
+    localStorage.removeItem(
+        LOCAL_STORAGE_KEY
+    );
+
+    conversationHistory = [];
+
+    conversationList.innerHTML = "";
+
+    newConversation();
+
+}
+
+
+/* =========================================================
+   TITLES
+========================================================= */
+
+function getConversationTitle() {
+
+    const firstUserMessage =
+        conversationHistory.find(
+            message =>
+                message.role === "user"
+        );
+
+    if (!firstUserMessage)
+        return "Nueva conversación";
+
+    return firstUserMessage.content
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 50);
+
+}
+
+
+function updateConversationTitle() {
+
+    document
+        .getElementById("chat-title")
+        .textContent =
+        getConversationTitle();
+
+}
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function setLoading(value) {
+
+    sendButton.disabled =
+        value;
+
+    messageInput.disabled =
+        value;
+
+}
+
+
+function setAuthMessage(message) {
+
+    authMessage.textContent =
+        message;
+
+}
+
+
+function showAuthError(message) {
+
+    authMessage.textContent =
+        `⚠️ ${message}`;
+
+}
+
+
+function escapeHTML(value) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        value;
+
+    return div.innerHTML;
+
+}
+
+
+/* =========================================================
+   AUTH STATE
+========================================================= */
+
+supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
+
+        if (
+            event === "SIGNED_IN" &&
+            session
+        ) {
+
+            currentUser =
+                session.user;
+
+            isIncognito = false;
+
+            enterApplication();
+
+        }
+
+        if (
+            event === "SIGNED_OUT"
+        ) {
+
+            currentUser = null;
+
+            if (!isIncognito)
+                showLogin();
+
+        }
+
+    }
+);
