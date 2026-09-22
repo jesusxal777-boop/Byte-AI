@@ -2,507 +2,152 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Byte AI — DreamByte Studios</title>
-
-    <meta
-        name="description"
-        content="Byte AI es el asistente de inteligencia artificial de DreamByte Studios."
-    >
-
-    <meta
-        name="keywords"
-        content="Byte AI, DreamByte Studios, inteligencia artificial, IA, programación, creatividad"
-    >
-
-    <meta name="author" content="DreamByte Studios">
-    <meta name="robots" content="index,follow">
+    <meta name="description" content="Byte AI es el asistente de inteligencia artificial de DreamByte Studios.">
     <meta name="theme-color" content="#071426">
-
-    <link
-        rel="canonical"
-        href="https://jesusxal777-boop.github.io/Byte-AI/"
-    >
-
-    <meta
-        property="og:type"
-        content="website"
-    >
-
-    <meta
-        property="og:title"
-        content="Byte AI — DreamByte Studios"
-    >
-
-    <meta
-        property="og:description"
-        content="El asistente de inteligencia artificial de DreamByte Studios."
-    >
-
-    <meta
-        property="og:site_name"
-        content="DreamByte Studios"
-    >
-
-    <link
-        rel="icon"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230d8cff'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='62' font-family='Arial' font-weight='900' fill='white'%3EB%3C/text%3E%3C/svg%3E"
-    >
-
-    <!-- Supabase -->
+    <link rel="canonical" href="https://jesusxal777-boop.github.io/Byte-AI/">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230d8cff'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='62' font-family='Arial' font-weight='900' fill='white'%3EB%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-    <!-- Sanitización del HTML generado por Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
-
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body class="theme-liquid-glass-dark">
 
-    <!-- =========================
-         LOGIN
-    ========================== -->
-
     <main id="login-screen" class="screen">
-
         <section class="login-card">
-
             <div class="brand-area">
-
                 <div class="byte-logo">B</div>
-
                 <div>
                     <h1>Byte AI</h1>
                     <p>by DreamByte Studios</p>
                 </div>
-
             </div>
-
             <p class="login-description">
                 Tu asistente creativo de inteligencia artificial.
                 Programa, crea, escribe, aprende y explora ideas.
             </p>
-
-            <button
-                id="google-login"
-                class="auth-button google-button"
-            >
+            <button id="google-login" class="auth-button google-button" type="button">
                 <span>G</span>
                 Continuar con Google
             </button>
-
-            <button
-                id="guest-login"
-                class="auth-button guest-button"
-            >
+            <button id="guest-login" class="auth-button guest-button" type="button">
                 👻 Continuar como incógnito
             </button>
-
-            <div class="divider">
-                <span>o usa tu correo</span>
-            </div>
-
+            <div class="divider"><span>o usa tu correo</span></div>
             <form id="email-login-form">
-
-                <label for="email">
-                    Correo electrónico
-                </label>
-
-                <input
-                    id="email"
-                    type="email"
-                    autocomplete="email"
-                    placeholder="tu@email.com"
-                    required
-                >
-
-                <label for="password">
-                    Contraseña
-                </label>
-
-                <input
-                    id="password"
-                    type="password"
-                    autocomplete="current-password"
-                    placeholder="••••••••"
-                    required
-                >
-
-                <button
-                    class="auth-button primary-button"
-                    type="submit"
-                >
-                    Iniciar sesión
-                </button>
-
+                <label for="email">Correo electrónico</label>
+                <input id="email" type="email" autocomplete="email" placeholder="tu@email.com" required>
+                <label for="password">Contraseña</label>
+                <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+                <button class="auth-button primary-button" type="submit">Iniciar sesión</button>
             </form>
-
-            <button
-                id="signup-button"
-                class="secondary-auth-button"
-            >
-                Crear una cuenta
-            </button>
-
+            <button id="signup-button" class="secondary-auth-button" type="button">Crear una cuenta</button>
             <p id="auth-message" class="auth-message"></p>
-
-            <p class="login-footer">
-                DreamByte Studios · Byte AI
-            </p>
-
+            <p class="login-footer">DreamByte Studios · Byte AI</p>
         </section>
-
     </main>
 
-
-    <!-- =========================
-         APP
-    ========================== -->
+    <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
 
     <main id="app-screen" class="app-screen hidden">
-
-        <!-- SIDEBAR -->
-
         <aside id="sidebar" class="sidebar">
-
             <div class="sidebar-header">
-
                 <div class="mini-brand">
-
                     <div class="mini-logo">B</div>
-
                     <strong>Byte AI</strong>
-
                 </div>
-
-                <button
-                    id="new-chat"
-                    class="icon-button"
-                    title="Nueva conversación"
-                >
-                    ＋
-                </button>
-
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button id="new-chat" class="icon-button" title="Nueva conversación" type="button">＋</button>
+                    <button id="close-sidebar" class="icon-button mobile-only" title="Cerrar menú" type="button">×</button>
+                </div>
             </div>
-
             <div class="conversation-section">
-
-                <div class="section-title">
-                    Conversaciones
-                </div>
-
-                <div
-                    id="conversation-list"
-                    class="conversation-list"
-                ></div>
-
+                <div class="section-title">Conversaciones</div>
+                <div id="conversation-list" class="conversation-list"></div>
             </div>
-
             <div class="sidebar-bottom">
-
-                <div
-                    id="account-info"
-                    class="account-info"
-                ></div>
-
-                <button
-                    id="settings-button"
-                    class="sidebar-action"
-                >
-                    ⚙️ Configuración
-                </button>
-
-                <button
-                    id="logout-button"
-                    class="sidebar-action danger"
-                >
-                    ↪ Cerrar sesión
-                </button>
-
+                <div id="account-info" class="account-info"></div>
+                <button id="settings-button" class="sidebar-action" type="button">⚙️ Configuración</button>
+                <button id="logout-button" class="sidebar-action danger" type="button">↪ Cerrar sesión</button>
             </div>
-
         </aside>
 
-
-        <!-- CHAT -->
-
         <section class="chat-area">
-
             <header class="chat-header">
-
-                <button
-                    id="mobile-menu"
-                    class="icon-button mobile-only"
-                >
-                    ☰
-                </button>
-
+                <button id="mobile-menu" class="icon-button mobile-only" type="button">☰</button>
                 <div>
-
-                    <h2 id="chat-title">
-                        Nueva conversación
-                    </h2>
-
+                    <h2 id="chat-title">Nueva conversación</h2>
                     <span class="status">
                         <span class="status-dot"></span>
                         Byte está en línea
                     </span>
-
                 </div>
-
             </header>
 
-
-            <!-- SETTINGS -->
-
-            <section
-                id="settings-panel"
-                class="settings-panel hidden"
-            >
-
+            <section id="settings-panel" class="settings-panel hidden">
                 <div class="settings-header">
-
                     <div>
                         <h2>Configuración</h2>
                         <p>Personaliza tu experiencia con Byte.</p>
                     </div>
-
-                    <button
-                        id="close-settings"
-                        class="icon-button"
-                    >
-                        ×
-                    </button>
-
+                    <button id="close-settings" class="icon-button" type="button">×</button>
                 </div>
-
-
                 <div class="settings-group">
-
                     <h3>Apariencia</h3>
-
                     <label for="theme-selector">
                         Tema
-
                         <select id="theme-selector">
-
-                            <option value="theme-liquid-glass-dark">
-                                Liquid Glass Dark
-                            </option>
-
-                            <option value="theme-liquid-glass-light">
-                                Liquid Glass Light
-                            </option>
-
-                            <option value="theme-2000s-dark">
-                                Web 2000s Dark
-                            </option>
-
-                            <option value="theme-2000s-light">
-                                Web 2000s Light
-                            </option>
-
+                            <option value="theme-liquid-glass-dark">Liquid Glass Dark</option>
+                            <option value="theme-liquid-glass-light">Liquid Glass Light</option>
+                            <option value="theme-2000s-dark">Web 2000s Dark</option>
+                            <option value="theme-2000s-light">Web 2000s Light</option>
                         </select>
-
                     </label>
-
                 </div>
-
-
                 <div class="settings-group">
-
-                    <h3>Funciones experimentales</h3>
-
-                    <div class="experimental-setting">
-
-                        <div>
-
-                            <strong>
-                                NSFW
-                            </strong>
-
-                            <p>
-                                Función experimental todavía no disponible.
-                            </p>
-
-                        </div>
-
-                        <label class="switch disabled">
-
-                            <input
-                                type="checkbox"
-                                disabled
-                            >
-
-                            <span></span>
-
-                        </label>
-
-                    </div>
-
-                    <small>
-                        Esta función permanecerá desactivada hasta que
-                        DreamByte implemente un sistema adecuado de
-                        verificación de edad y controles de seguridad.
-                    </small>
-
-                </div>
-
-
-                <div class="settings-group">
-
                     <h3>Cuenta</h3>
-
-                    <button
-                        id="clear-incognito"
-                        class="settings-button"
-                    >
-                        🗑️ Borrar conversaciones locales
-                    </button>
-
+                    <button id="clear-incognito" class="settings-button" type="button">🗑️ Borrar conversaciones locales</button>
                 </div>
-
             </section>
 
-
-            <!-- MESSAGES -->
-
-            <div
-                id="messages"
-                class="messages"
-            >
-
+            <div id="messages" class="messages">
                 <div class="welcome-message">
-
-                    <div class="welcome-logo">
-                        B
-                    </div>
-
-                    <h1>
-                        ¿Qué hacemos hoy?
-                    </h1>
-
-                    <p>
-                        Soy Byte, el asistente de DreamByte Studios.
-                    </p>
-
+                    <div class="welcome-logo">B</div>
+                    <h1>¿Qué hacemos hoy?</h1>
+                    <p>Soy Byte, el asistente de DreamByte Studios.</p>
                     <div class="suggestions">
-
-                        <button
-                            class="suggestion"
-                            data-prompt="Dame ideas para un proyecto tecnológico."
-                        >
-                            💡 Ideas para proyectos
-                        </button>
-
-                        <button
-                            class="suggestion"
-                            data-prompt="Ayúdame a programar una aplicación."
-                        >
-                            💻 Programar una app
-                        </button>
-
-                        <button
-                            class="suggestion"
-                            data-prompt="Ayúdame a escribir un guion."
-                        >
-                            🎬 Crear un guion
-                        </button>
-
-                        <button
-                            class="suggestion"
-                            data-prompt="Explícame un concepto de programación de forma sencilla."
-                        >
-                            🧠 Aprender algo
-                        </button>
-
+                        <button class="suggestion" data-prompt="Dame ideas para un proyecto tecnológico." type="button">💡 Ideas para proyectos</button>
+                        <button class="suggestion" data-prompt="Ayúdame a programar una aplicación." type="button">💻 Programar una app</button>
+                        <button class="suggestion" data-prompt="Ayúdame a escribir un guion." type="button">🎬 Crear un guion</button>
+                        <button class="suggestion" data-prompt="Explícame un concepto de programación de forma sencilla." type="button">🧠 Aprender algo</button>
                     </div>
-
                 </div>
-
             </div>
-
-
-            <!-- COMPOSER -->
 
             <div class="composer-container">
-
-                <form
-                    id="chat-form"
-                    class="composer"
-                >
-
-                    <textarea
-                        id="message-input"
-                        rows="1"
-                        placeholder="Escribe un mensaje para Byte..."
-                    ></textarea>
-
-                    <button
-                        id="send-button"
-                        class="send-button"
-                        type="submit"
-                        aria-label="Enviar"
-                    >
-                        ↑
-                    </button>
-
+                <form id="chat-form" class="composer">
+                    <textarea id="message-input" rows="1" placeholder="Escribe un mensaje para Byte..."></textarea>
+                    <button id="send-button" class="send-button" type="submit" aria-label="Enviar">↑</button>
                 </form>
-
-                <div class="composer-info">
-                    Byte AI puede cometer errores. Verifica información importante.
-                </div>
-
+                <div class="composer-info">Byte AI puede cometer errores. Verifica información importante.</div>
             </div>
-
         </section>
-
     </main>
 
-
-    <!-- HTML PREVIEW -->
-
-    <div
-        id="preview-modal"
-        class="preview-modal hidden"
-    >
-
+    <div id="preview-modal" class="preview-modal hidden">
         <div class="preview-window">
-
             <header>
-
-                <strong>
-                    Vista previa HTML
-                </strong>
-
-                <button
-                    id="close-preview"
-                    class="icon-button"
-                >
-                    ×
-                </button>
-
+                <strong>Vista previa HTML</strong>
+                <button id="close-preview" class="icon-button" type="button">×</button>
             </header>
-
-            <iframe
-                id="html-preview"
-                sandbox="allow-scripts"
-                title="Vista previa HTML"
-            ></iframe>
-
+            <iframe id="html-preview" sandbox="allow-scripts" title="Vista previa HTML"></iframe>
         </div>
-
     </div>
-
 
     <script src="config.js"></script>
     <script src="app.js"></script>
-
+    <script src="image.js"></script>
 </body>
 </html>
