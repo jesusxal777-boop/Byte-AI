@@ -2197,3 +2197,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     restoreSession();
 });
+// Añade al FINAL de app.js:
+const imageScript = document.createElement("script");
+imageScript.src = "image.js";
+document.body.appendChild(imageScript);
