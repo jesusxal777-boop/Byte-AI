@@ -3,27 +3,22 @@
 <head>
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Byte AI — Asistente de IA | DreamByte Studios</title>
+    <title>Byte AI — DreamByte Studios</title>
 
     <meta
         name="description"
-        content="Byte AI es el asistente de inteligencia artificial de DreamByte Studios para crear, programar, escribir ideas, desarrollar proyectos y resolver preguntas."
+        content="Byte AI es el asistente de inteligencia artificial de DreamByte Studios."
     >
 
     <meta
         name="keywords"
-        content="Byte AI, DreamByte Studios, inteligencia artificial, asistente IA, programación, creatividad, tecnología"
+        content="Byte AI, DreamByte Studios, inteligencia artificial, IA, programación, creatividad"
     >
 
     <meta name="author" content="DreamByte Studios">
-
-    <meta name="robots" content="index, follow">
-
+    <meta name="robots" content="index,follow">
     <meta name="theme-color" content="#071426">
 
     <link
@@ -31,7 +26,6 @@
         href="https://jesusxal777-boop.github.io/Byte-AI/"
     >
 
-    <!-- Open Graph -->
     <meta
         property="og:type"
         content="website"
@@ -39,7 +33,7 @@
 
     <meta
         property="og:title"
-        content="Byte AI — Asistente de IA"
+        content="Byte AI — DreamByte Studios"
     >
 
     <meta
@@ -48,40 +42,32 @@
     >
 
     <meta
-        property="og:url"
-        content="https://jesusxal777-boop.github.io/Byte-AI/"
-    >
-
-    <meta
         property="og:site_name"
         content="DreamByte Studios"
     >
 
-    <!-- Twitter/X -->
-    <meta
-        name="twitter:card"
-        content="summary"
-    >
-
-    <meta
-        name="twitter:title"
-        content="Byte AI — DreamByte Studios"
-    >
-
-    <meta
-        name="twitter:description"
-        content="Asistente de inteligencia artificial de DreamByte Studios."
+    <link
+        rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230d8cff'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='62' font-family='Arial' font-weight='900' fill='white'%3EB%3C/text%3E%3C/svg%3E"
     >
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Sanitización del HTML generado por Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body class="theme-liquid-glass-dark">
 
-    <!-- LOGIN -->
+    <!-- =========================
+         LOGIN
+    ========================== -->
 
     <main id="login-screen" class="screen">
 
@@ -89,9 +75,7 @@
 
             <div class="brand-area">
 
-                <div class="byte-logo">
-                    B
-                </div>
+                <div class="byte-logo">B</div>
 
                 <div>
                     <h1>Byte AI</h1>
@@ -102,25 +86,27 @@
 
             <p class="login-description">
                 Tu asistente creativo de inteligencia artificial.
-                Crea, programa, escribe y explora nuevas ideas.
+                Programa, crea, escribe, aprende y explora ideas.
             </p>
-
-            <!-- GOOGLE -->
 
             <button
                 id="google-login"
                 class="auth-button google-button"
-                type="button"
             >
-                <span class="button-icon">G</span>
+                <span>G</span>
                 Continuar con Google
             </button>
 
-            <div class="divider">
-                <span>o continúa con correo</span>
-            </div>
+            <button
+                id="guest-login"
+                class="auth-button guest-button"
+            >
+                👻 Continuar como incógnito
+            </button>
 
-            <!-- EMAIL LOGIN -->
+            <div class="divider">
+                <span>o usa tu correo</span>
+            </div>
 
             <form id="email-login-form">
 
@@ -131,8 +117,8 @@
                 <input
                     id="email"
                     type="email"
-                    placeholder="tu@email.com"
                     autocomplete="email"
+                    placeholder="tu@email.com"
                     required
                 >
 
@@ -143,14 +129,14 @@
                 <input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
                     autocomplete="current-password"
+                    placeholder="••••••••"
                     required
                 >
 
                 <button
-                    type="submit"
                     class="auth-button primary-button"
+                    type="submit"
                 >
                     Iniciar sesión
                 </button>
@@ -160,15 +146,11 @@
             <button
                 id="signup-button"
                 class="secondary-auth-button"
-                type="button"
             >
                 Crear una cuenta
             </button>
 
-            <p
-                id="auth-message"
-                class="auth-message"
-            ></p>
+            <p id="auth-message" class="auth-message"></p>
 
             <p class="login-footer">
                 DreamByte Studios · Byte AI
@@ -179,12 +161,11 @@
     </main>
 
 
-    <!-- APP -->
+    <!-- =========================
+         APP
+    ========================== -->
 
-    <main
-        id="app-screen"
-        class="app-screen hidden"
-    >
+    <main id="app-screen" class="app-screen hidden">
 
         <!-- SIDEBAR -->
 
@@ -194,9 +175,7 @@
 
                 <div class="mini-brand">
 
-                    <div class="mini-logo">
-                        B
-                    </div>
+                    <div class="mini-logo">B</div>
 
                     <strong>Byte AI</strong>
 
@@ -207,7 +186,7 @@
                     class="icon-button"
                     title="Nueva conversación"
                 >
-                    +
+                    ＋
                 </button>
 
             </div>
@@ -227,25 +206,10 @@
 
             <div class="sidebar-bottom">
 
-                <button
-                    id="profile-button"
-                    class="profile-button"
-                >
-
-                    <img
-                        id="sidebar-avatar"
-                        class="avatar"
-                        src=""
-                        alt="Foto de perfil"
-                    >
-
-                    <span
-                        id="sidebar-username"
-                    >
-                        Usuario
-                    </span>
-
-                </button>
+                <div
+                    id="account-info"
+                    class="account-info"
+                ></div>
 
                 <button
                     id="settings-button"
@@ -292,32 +256,119 @@
 
                 </div>
 
-                <div class="header-actions">
+            </header>
 
-                    <select
-                        id="theme-selector"
-                        aria-label="Tema"
+
+            <!-- SETTINGS -->
+
+            <section
+                id="settings-panel"
+                class="settings-panel hidden"
+            >
+
+                <div class="settings-header">
+
+                    <div>
+                        <h2>Configuración</h2>
+                        <p>Personaliza tu experiencia con Byte.</p>
+                    </div>
+
+                    <button
+                        id="close-settings"
+                        class="icon-button"
                     >
-                        <option value="theme-liquid-glass-dark">
-                            Liquid Glass
-                        </option>
-
-                        <option value="theme-2000s-dark">
-                            Web 2000s
-                        </option>
-
-                        <option value="theme-2000s-light">
-                            Web 2000s Claro
-                        </option>
-
-                        <option value="theme-liquid-glass-light">
-                            Liquid Glass Claro
-                        </option>
-                    </select>
+                        ×
+                    </button>
 
                 </div>
 
-            </header>
+
+                <div class="settings-group">
+
+                    <h3>Apariencia</h3>
+
+                    <label for="theme-selector">
+                        Tema
+
+                        <select id="theme-selector">
+
+                            <option value="theme-liquid-glass-dark">
+                                Liquid Glass Dark
+                            </option>
+
+                            <option value="theme-liquid-glass-light">
+                                Liquid Glass Light
+                            </option>
+
+                            <option value="theme-2000s-dark">
+                                Web 2000s Dark
+                            </option>
+
+                            <option value="theme-2000s-light">
+                                Web 2000s Light
+                            </option>
+
+                        </select>
+
+                    </label>
+
+                </div>
+
+
+                <div class="settings-group">
+
+                    <h3>Funciones experimentales</h3>
+
+                    <div class="experimental-setting">
+
+                        <div>
+
+                            <strong>
+                                NSFW
+                            </strong>
+
+                            <p>
+                                Función experimental todavía no disponible.
+                            </p>
+
+                        </div>
+
+                        <label class="switch disabled">
+
+                            <input
+                                type="checkbox"
+                                disabled
+                            >
+
+                            <span></span>
+
+                        </label>
+
+                    </div>
+
+                    <small>
+                        Esta función permanecerá desactivada hasta que
+                        DreamByte implemente un sistema adecuado de
+                        verificación de edad y controles de seguridad.
+                    </small>
+
+                </div>
+
+
+                <div class="settings-group">
+
+                    <h3>Cuenta</h3>
+
+                    <button
+                        id="clear-incognito"
+                        class="settings-button"
+                    >
+                        🗑️ Borrar conversaciones locales
+                    </button>
+
+                </div>
+
+            </section>
 
 
             <!-- MESSAGES -->
@@ -364,6 +415,13 @@
                             🎬 Crear un guion
                         </button>
 
+                        <button
+                            class="suggestion"
+                            data-prompt="Explícame un concepto de programación de forma sencilla."
+                        >
+                            🧠 Aprender algo
+                        </button>
+
                     </div>
 
                 </div>
@@ -375,18 +433,21 @@
 
             <div class="composer-container">
 
-                <form id="chat-form" class="composer">
+                <form
+                    id="chat-form"
+                    class="composer"
+                >
 
                     <textarea
                         id="message-input"
-                        placeholder="Escribe un mensaje para Byte..."
                         rows="1"
+                        placeholder="Escribe un mensaje para Byte..."
                     ></textarea>
 
                     <button
                         id="send-button"
-                        type="submit"
                         class="send-button"
+                        type="submit"
                         aria-label="Enviar"
                     >
                         ↑
@@ -405,88 +466,39 @@
     </main>
 
 
-    <!-- PROFILE MODAL -->
+    <!-- HTML PREVIEW -->
 
     <div
-        id="profile-modal"
-        class="modal hidden"
+        id="preview-modal"
+        class="preview-modal hidden"
     >
 
-        <div class="modal-card">
+        <div class="preview-window">
 
-            <button
-                class="modal-close"
-                data-close-modal
-            >
-                ×
-            </button>
+            <header>
 
-            <h2>Tu perfil</h2>
-
-            <div class="profile-editor">
-
-                <label class="avatar-editor">
-
-                    <img
-                        id="profile-avatar"
-                        src=""
-                        alt="Foto de perfil"
-                    >
-
-                    <span>
-                        Cambiar foto
-                    </span>
-
-                    <input
-                        id="avatar-input"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                    >
-
-                </label>
-
-                <label>
-                    Nombre
-                    <input
-                        id="profile-name"
-                        type="text"
-                        maxlength="40"
-                    >
-                </label>
+                <strong>
+                    Vista previa HTML
+                </strong>
 
                 <button
-                    id="save-profile"
-                    class="primary-button"
+                    id="close-preview"
+                    class="icon-button"
                 >
-                    Guardar cambios
+                    ×
                 </button>
 
-                <p id="profile-message"></p>
+            </header>
 
-            </div>
+            <iframe
+                id="html-preview"
+                sandbox="allow-scripts"
+                title="Vista previa HTML"
+            ></iframe>
 
         </div>
 
     </div>
-
-
-    <!-- NOSCRIPT -->
-
-    <noscript>
-        <section>
-            <h1>Byte AI — DreamByte Studios</h1>
-
-            <p>
-                Byte AI es un asistente de inteligencia artificial
-                creado por DreamByte Studios para ayudar con programación,
-                creatividad, escritura, ideas y preguntas generales.
-            </p>
-
-            <p>
-                JavaScript debe estar habilitado para utilizar Byte AI.
-            </p>
-        </section>
-    </noscript>
 
 
     <script src="config.js"></script>
