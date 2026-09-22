@@ -1,323 +1,264 @@
-@import url("https://raw.githubusercontent.com/jesusxal777-boop/Byte-AI/c858e5cbfec072f95fee332cf29920b28989aa96/styles.css");
+/* Base Liquid Glass (versión estable) */
+@import url("https://cdn.jsdelivr.net/gh/jesusxal777-boop/Byte-AI@c858e5cbfec072f95fee332cf29920b28989aa96/styles.css");
 
 /* =========================================================
-   BYTE AI — SIDEBAR
+   FIXES — layout chat, mobile, image panel
 ========================================================= */
 
-#app-screen {
-    min-width: 0;
+html, body {
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-screen {
+  display: flex !important;
+  width: 100%;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-area {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100dvh;
+  overflow: hidden !important;
+}
+
+.chat-header {
+  flex-shrink: 0;
+}
+
+.messages {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.composer-container {
+  flex-shrink: 0 !important;
+  position: relative;
+  z-index: 5;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 #sidebar {
-    flex-shrink: 0;
-    transition:
-        width 0.25s ease,
-        transform 0.25s ease,
-        opacity 0.2s ease;
+  flex-shrink: 0;
 }
-
-/* Escritorio: cerrar sidebar */
 
 body.sidebar-collapsed #sidebar {
-    width: 0 !important;
-    min-width: 0 !important;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* El chat aprovecha el espacio */
-
-body.sidebar-collapsed .chat-main,
-body.sidebar-collapsed .chat-container,
-body.sidebar-collapsed main {
-    min-width: 0;
-}
-
-/* =========================================================
-   MENSAJES
-========================================================= */
-
-#messages {
-    min-width: 0;
-    width: 100%;
-}
-
-.message-row {
-    display: flex;
-    width: 100%;
-    min-width: 0;
-    margin: 10px 0;
-}
-
-.user-row {
-    justify-content: flex-end;
-}
-
-.assistant-row {
-    justify-content: flex-start;
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .message-bubble {
-    box-sizing: border-box;
-    min-width: 0;
-    max-width: min(820px, 88%);
-    overflow-wrap: anywhere;
-    word-break: break-word;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: min(820px, 88%);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
-
-.user-bubble {
-    border-radius: 20px 20px 5px 20px;
-}
-
-.assistant-bubble {
-    border-radius: 20px 20px 20px 5px;
-}
-
-/* =========================================================
-   CÓDIGO
-========================================================= */
 
 .message-bubble pre {
-    display: block;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-
-    margin: 14px 0;
-
-    overflow-x: auto;
-    overflow-y: hidden;
-
-    white-space: pre;
-
-    border-radius: 14px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-.message-bubble pre code {
-    display: block;
-
-    width: max-content;
-    min-width: 100%;
-
-    box-sizing: border-box;
-
-    white-space: pre;
-    overflow-wrap: normal;
-    word-break: normal;
+.sidebar-overlay {
+  display: none;
 }
 
-/* Barra superior del código */
-
-.code-toolbar {
-    position: sticky;
-    left: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    min-width: 100%;
-
-    box-sizing: border-box;
-
-    padding: 8px 10px;
-
-    border-bottom: 1px solid
-        rgba(255, 255, 255, 0.08);
-
-    user-select: none;
+.mobile-only {
+  display: none !important;
 }
 
-.code-language {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    opacity: 0.7;
+/* Image mode */
+.image-mode-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
-.code-actions {
-    display: flex;
-    gap: 6px;
+.image-mode-btn {
+  border: 1px solid rgba(90, 170, 255, 0.25);
+  background: rgba(20, 40, 70, 0.55);
+  color: inherit;
+  border-radius: 12px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: 0.2s;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.code-action {
-    display: inline-flex;
-
-    align-items: center;
-    justify-content: center;
-
-    width: 30px;
-    height: 30px;
-
-    padding: 0;
-
-    border: 0;
-    border-radius: 8px;
-
-    cursor: pointer;
-
-    background: rgba(
-        255,
-        255,
-        255,
-        0.08
-    );
-
-    color: inherit;
+.image-mode-btn.active {
+  background: rgba(45, 140, 255, 0.22);
+  border-color: rgba(90, 180, 255, 0.55);
 }
 
-.code-action:hover {
-    background: rgba(
-        255,
-        255,
-        255,
-        0.15
-    );
+#byte-image-panel {
+  display: none;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(10, 25, 50, 0.55);
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  margin-bottom: 8px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-/* =========================================================
-   TYPING
-========================================================= */
-
-.typing-bubble {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+#byte-image-prompt {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  background: rgba(0, 10, 25, 0.45);
+  color: inherit;
+  padding: 12px;
+  font: inherit;
+  outline: none;
 }
 
-.typing-bubble span {
-    width: 6px;
-    height: 6px;
-
-    border-radius: 50%;
-
-    background: currentColor;
-
-    opacity: 0.35;
-
-    animation: byteTyping 1.2s
-        infinite ease-in-out;
+.byte-image-options {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
-.typing-bubble span:nth-child(2) {
-    animation-delay: 0.15s;
+.byte-image-options select,
+#byte-generate-image {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(100, 180, 255, 0.25);
+  background: rgba(20, 45, 80, 0.65);
+  color: inherit;
 }
 
-.typing-bubble span:nth-child(3) {
-    animation-delay: 0.3s;
+#byte-generate-image {
+  cursor: pointer;
+  font-weight: 600;
 }
 
-@keyframes byteTyping {
-    0%,
-    60%,
-    100% {
-        transform: translateY(0);
-        opacity: 0.3;
-    }
-
-    30% {
-        transform: translateY(-4px);
-        opacity: 0.9;
-    }
+#byte-image-status {
+  margin-top: 10px;
+  opacity: 0.85;
+  font-size: 0.9rem;
 }
 
-/* =========================================================
-   CARGA DE CHATS
-========================================================= */
-
-.messages-loading {
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    gap: 6px;
-
-    height: 100%;
-    min-height: 160px;
+#byte-image-result {
+  display: none;
+  margin-top: 14px;
+  text-align: center;
 }
 
-.messages-loading span {
-    width: 7px;
-    height: 7px;
-
-    border-radius: 50%;
-
-    background: currentColor;
-
-    opacity: 0.35;
-
-    animation: byteTyping 1.2s
-        infinite ease-in-out;
+#byte-image-result img {
+  max-width: 100%;
+  max-height: min(55vh, 520px);
+  border-radius: 18px;
+  display: block;
+  margin: auto;
+  border: 1px solid rgba(100, 180, 255, 0.15);
 }
 
-.messages-loading span:nth-child(2) {
-    animation-delay: 0.15s;
+#byte-download-image {
+  display: inline-block;
+  margin-top: 10px;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.85;
 }
-
-.messages-loading span:nth-child(3) {
-    animation-delay: 0.3s;
-}
-
-/* =========================================================
-   ERROR DE CHATS
-========================================================= */
-
-.chat-error,
-.chat-load-error {
-    margin: 15px;
-    padding: 16px;
-
-    border-radius: 14px;
-
-    background: rgba(
-        255,
-        80,
-        80,
-        0.08
-    );
-}
-
-.chat-error strong,
-.chat-load-error strong {
-    display: block;
-}
-
-.chat-error small,
-.chat-load-error p {
-    display: block;
-    margin-top: 7px;
-    opacity: 0.7;
-}
-
-.chat-error button {
-    margin-top: 12px;
-
-    border: 0;
-    border-radius: 9px;
-
-    padding: 8px 12px;
-
-    cursor: pointer;
-}
-
-/* =========================================================
-   MÓVIL
-========================================================= */
 
 @media (max-width: 800px) {
+  .mobile-only {
+    display: grid !important;
+  }
 
-    body.sidebar-collapsed #sidebar {
-        width: 0 !important;
-    }
+  .app-screen {
+    height: 100dvh !important;
+    max-height: 100dvh;
+  }
 
-    .message-bubble {
-        max-width: 92%;
-    }
+  .sidebar {
+    position: fixed !important;
+    z-index: 60;
+    top: 0;
+    left: 0;
+    width: min(86vw, 320px) !important;
+    height: 100dvh !important;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: 20px 0 60px rgba(0, 0, 0, 0.35);
+  }
 
-    .message-bubble pre {
-        max-width: 100%;
-    }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .sidebar-overlay.visible {
+    display: block !important;
+  }
+
+  .chat-area {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .messages {
+    padding: 16px 12px 12px;
+  }
+
+  .composer-container {
+    padding: 8px 10px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .message-bubble {
+    max-width: 92%;
+  }
+
+  .suggestions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .image-mode-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  #byte-image-result img {
+    max-height: 45vh;
+  }
+
+  .message-bubble {
+    max-width: 94%;
+  }
 }
