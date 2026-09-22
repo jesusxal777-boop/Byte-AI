@@ -39,10 +39,15 @@
     panel.innerHTML = `
       <textarea id="byte-image-prompt" placeholder="Describe la imagen que quieres crear..."></textarea>
       <div class="byte-image-options">
+        <select id="byte-image-model" title="Modelo">
+          <option value="turbo" selected>turbo (menos censura)</option>
+          <option value="zimage">zimage</option>
+          <option value="flux">flux</option>
+        </select>
         <select id="byte-image-size">
+          <option value="768x1024">768 × 1024</option>
           <option value="1024x1024">1024 × 1024</option>
           <option value="1024x768">1024 × 768</option>
-          <option value="768x1024">768 × 1024</option>
           <option value="512x512">512 × 512</option>
         </select>
         <button id="byte-generate-image" type="button">✨ Generar</button>
@@ -77,6 +82,7 @@
     const generateButton = panel.querySelector("#byte-generate-image");
     const promptInput = panel.querySelector("#byte-image-prompt");
     const sizeSelect = panel.querySelector("#byte-image-size");
+    const modelSelect = panel.querySelector("#byte-image-model");
     const status = panel.querySelector("#byte-image-status");
     const result = panel.querySelector("#byte-image-result");
     const image = panel.querySelector("#byte-generated-image");
@@ -90,9 +96,10 @@
       }
 
       const [width, height] = sizeSelect.value.split("x").map(Number);
+      const model = modelSelect.value || "turbo";
       generateButton.disabled = true;
       generateButton.textContent = "⏳ Generando...";
-      status.textContent = "Byte está creando tu imagen...";
+      status.textContent = "Byte está creando tu imagen (" + model + ")...";
       result.style.display = "none";
 
       try {
@@ -102,7 +109,7 @@
         }
 
         const { data, error } = await sb.functions.invoke("generate-image", {
-          body: { prompt, width, height },
+          body: { prompt, width, height, model },
         });
 
         if (data?.error) {
@@ -122,7 +129,8 @@
         image.src = data.image;
         download.href = data.image;
         result.style.display = "block";
-        status.textContent = "✨ Imagen generada correctamente.";
+        const used = data.model ? " · " + data.model : "";
+        status.textContent = "✨ Imagen generada" + used;
       } catch (err) {
         console.error(err);
         status.textContent = "❌ " + (err.message || "No se pudo generar la imagen.");
