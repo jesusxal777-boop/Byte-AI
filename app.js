@@ -1,1420 +1,1205 @@
 /* =========================================================
-   BYTE AI
+   BYTE AI — APP.JS
    DreamByte Studios
-========================================================= */
+   ========================================================= */
 
-const {
-    createClient
-} = window.supabase;
+document.addEventListener("DOMContentLoaded", () => {
+    "use strict";
 
+    /* =====================================================
+       SUPABASE
+       ===================================================== */
 
-/* =========================================================
-   SUPABASE
-========================================================= */
+    if (!window.supabase) {
+        console.error("Supabase JS no se cargó.");
+        return;
+    }
 
-const supabaseClient = createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-);
+    if (
+        typeof SUPABASE_URL === "undefined" ||
+        typeof SUPABASE_ANON_KEY === "undefined"
+    ) {
+        console.error("Faltan SUPABASE_URL o SUPABASE_ANON_KEY.");
+        return;
+    }
 
+    const supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+    );
 
-/* =========================================================
-   STATE
-========================================================= */
+    /* =====================================================
+       ELEMENTOS
+       ===================================================== */
 
-let currentUser = null;
-let isIncognito = false;
+    const loginScreen = document.getElementById("login-screen");
+    const appScreen = document.getElementById("app-screen");
 
-let currentConversationId = null;
+    const googleLogin = document.getElementById("google-login");
+    const guestLogin = document.getElementById("guest-login");
 
-let conversationHistory = [];
+    const emailForm = document.getElementById("email-login-form");
+    const signupButton = document.getElementById("signup-button");
 
-const LOCAL_STORAGE_KEY = "byte_ai_incognito_conversations";
-const THEME_STORAGE_KEY = "byte_ai_theme";
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const authMessage = document.getElementById("auth-message");
 
+    const logoutButton = document.getElementById("logout-button");
+    const newChatButton = document.getElementById("new-chat");
 
-/* =========================================================
-   ELEMENTS
-========================================================= */
+    const chatForm = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message-input");
+    const sendButton = document.getElementById("send-button");
 
-const loginScreen =
-    document.getElementById("login-screen");
+    const messages = document.getElementById("messages");
+    const conversationList = document.getElementById("conversation-list");
+    const chatTitle = document.getElementById("chat-title");
+    const accountInfo = document.getElementById("account-info");
 
-const appScreen =
-    document.getElementById("app-screen");
+    const settingsButton = document.getElementById("settings-button");
+    const settingsPanel = document.getElementById("settings-panel");
+    const closeSettings = document.getElementById("close-settings");
 
-const authMessage =
-    document.getElementById("auth-message");
+    const themeSelector = document.getElementById("theme-selector");
+    const clearIncognito = document.getElementById("clear-incognito");
 
-const messages =
-    document.getElementById("messages");
+    const previewModal = document.getElementById("preview-modal");
+    const previewFrame = document.getElementById("html-preview");
+    const closePreview = document.getElementById("close-preview");
 
-const chatForm =
-    document.getElementById("chat-form");
+    const mobileMenu = document.getElementById("mobile-menu");
+    const sidebar = document.getElementById("sidebar");
 
-const messageInput =
-    document.getElementById("message-input");
+    /* =====================================================
+       ESTADO
+       ===================================================== */
 
-const sendButton =
-    document.getElementById("send-button");
+    let currentUser = null;
+    let isIncognito = false;
 
-const conversationList =
-    document.getElementById("conversation-list");
+    let currentConversationId = null;
+    let conversations = [];
 
-const settingsPanel =
-    document.getElementById("settings-panel");
+    let sending = false;
 
-const previewModal =
-    document.getElementById("preview-modal");
+    const LOCAL_KEY = "byte_ai_incognito_conversations";
+    const THEME_KEY = "byte_ai_theme";
 
-const htmlPreview =
-    document.getElementById("html-preview");
+    /* =====================================================
+       UTILIDADES
+       ===================================================== */
 
+    function setAuthMessage(text, type = "") {
+        if (!authMessage) return;
 
-/* =========================================================
-   INITIALIZATION
-========================================================= */
+        authMessage.textContent = text;
+        authMessage.className = "auth-message";
 
-document.addEventListener("DOMContentLoaded", async () => {
+        if (type) {
+            authMessage.classList.add(type);
+        }
+    }
+
+    function showLogin() {
+        loginScreen?.classList.remove("hidden");
+        appScreen?.classList.add("hidden");
+    }
+
+    function showApp() {
+        loginScreen?.classList.add("hidden");
+        appScreen?.classList.remove("hidden");
+    }
+
+    function escapeHTML(value) {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function generateId() {
+        return (
+            Date.now().toString(36) +
+            Math.random().toString(36).substring(2, 9)
+        );
+    }
+
+    function getUserName(user) {
+        if (!user) return "Incógnito";
+
+        return (
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email ||
+            "Usuario"
+        );
+    }
+
+    /* =====================================================
+       TEMA
+       ===================================================== */
+
+    function loadTheme() {
+        const savedTheme =
+            localStorage.getItem(THEME_KEY) ||
+            "theme-liquid-glass-dark";
+
+        document.body.className = savedTheme;
+
+        if (themeSelector) {
+            themeSelector.value = savedTheme;
+        }
+    }
+
+    themeSelector?.addEventListener("change", () => {
+        const theme = themeSelector.value;
+
+        document.body.className = theme;
+        localStorage.setItem(THEME_KEY, theme);
+    });
 
     loadTheme();
 
-    setupEvents();
+    /* =====================================================
+       LOCAL STORAGE / INCÓGNITO
+       ===================================================== */
 
-    const {
-        data: {
-            session
+    function loadLocalConversations() {
+        try {
+            const raw = localStorage.getItem(LOCAL_KEY);
+
+            if (!raw) {
+                conversations = [];
+                return;
+            }
+
+            const data = JSON.parse(raw);
+
+            if (!Array.isArray(data)) {
+                conversations = [];
+                return;
+            }
+
+            // Las conversaciones locales duran 7 días.
+            const now = Date.now();
+
+            conversations = data.filter(item => {
+                return (
+                    item &&
+                    item.createdAt &&
+                    now - item.createdAt < 7 * 24 * 60 * 60 * 1000
+                );
+            });
+
+            saveLocalConversations();
+        } catch (error) {
+            console.error("Error leyendo conversaciones locales:", error);
+            conversations = [];
         }
-    } = await supabaseClient.auth.getSession();
-
-    if (session) {
-
-        currentUser =
-            session.user;
-
-        isIncognito = false;
-
-        enterApplication();
-
     }
 
-});
+    function saveLocalConversations() {
+        try {
+            localStorage.setItem(
+                LOCAL_KEY,
+                JSON.stringify(conversations)
+            );
+        } catch (error) {
+            console.error("No se pudo guardar el historial:", error);
+        }
+    }
 
+    /* =====================================================
+       CONVERSACIONES
+       ===================================================== */
 
-/* =========================================================
-   EVENTS
-========================================================= */
+    function createConversation() {
+        const conversation = {
+            id: generateId(),
+            title: "Nueva conversación",
+            createdAt: Date.now(),
+            messages: []
+        };
 
-function setupEvents() {
+        conversations.unshift(conversation);
 
-    document
-        .getElementById("google-login")
-        .addEventListener(
-            "click",
-            loginWithGoogle
+        currentConversationId = conversation.id;
+
+        saveConversations();
+
+        renderConversationList();
+        renderConversation();
+
+        return conversation;
+    }
+
+    function getCurrentConversation() {
+        return conversations.find(
+            conversation => conversation.id === currentConversationId
         );
+    }
 
-    document
-        .getElementById("guest-login")
-        .addEventListener(
-            "click",
-            enterIncognito
-        );
+    function saveConversations() {
+        // Para incógnito todo queda exclusivamente en el navegador.
+        if (isIncognito) {
+            saveLocalConversations();
+            return;
+        }
 
-    document
-        .getElementById("email-login-form")
-        .addEventListener(
-            "submit",
-            loginWithEmail
-        );
+        // También mantenemos una copia local para que la interfaz
+        // no pierda el chat si se recarga.
+        try {
+            localStorage.setItem(
+                "byte_ai_user_" + currentUser?.id,
+                JSON.stringify(conversations)
+            );
+        } catch (error) {
+            console.warn("No se pudo guardar historial local:", error);
+        }
+    }
 
-    document
-        .getElementById("signup-button")
-        .addEventListener(
-            "click",
-            signup
-        );
+    function loadUserConversations() {
+        if (isIncognito) {
+            loadLocalConversations();
+            return;
+        }
 
-    document
-        .getElementById("logout-button")
-        .addEventListener(
-            "click",
-            logout
-        );
+        try {
+            const key = "byte_ai_user_" + currentUser?.id;
+            const raw = localStorage.getItem(key);
 
-    document
-        .getElementById("new-chat")
-        .addEventListener(
-            "click",
-            newConversation
-        );
+            if (raw) {
+                const parsed = JSON.parse(raw);
 
-    document
-        .getElementById("settings-button")
-        .addEventListener(
-            "click",
-            () => {
-                settingsPanel.classList.toggle("hidden");
+                if (Array.isArray(parsed)) {
+                    conversations = parsed;
+                    return;
+                }
             }
-        );
+        } catch (error) {
+            console.warn("No se pudo cargar historial:", error);
+        }
 
-    document
-        .getElementById("close-settings")
-        .addEventListener(
-            "click",
-            () => {
-                settingsPanel.classList.add("hidden");
-            }
-        );
+        conversations = [];
+    }
 
-    document
-        .getElementById("theme-selector")
-        .addEventListener(
-            "change",
-            changeTheme
-        );
+    function renderConversationList() {
+        if (!conversationList) return;
 
-    document
-        .getElementById("clear-incognito")
-        .addEventListener(
-            "click",
-            clearIncognito
-        );
+        conversationList.innerHTML = "";
 
-    document
-        .getElementById("mobile-menu")
-        .addEventListener(
-            "click",
-            () => {
-                document
-                    .getElementById("sidebar")
-                    .classList.toggle("open");
-            }
-        );
+        if (conversations.length === 0) {
+            const empty = document.createElement("div");
 
-    document
-        .getElementById("close-preview")
-        .addEventListener(
-            "click",
-            closePreview
-        );
+            empty.className = "conversation-empty";
+            empty.textContent = "No hay conversaciones todavía.";
 
-    chatForm.addEventListener(
-        "submit",
-        sendMessage
-    );
+            conversationList.appendChild(empty);
+            return;
+        }
 
-    messageInput.addEventListener(
-        "keydown",
-        event => {
+        conversations.forEach(conversation => {
+            const button = document.createElement("button");
+
+            button.className =
+                "conversation-item" +
+                (conversation.id === currentConversationId
+                    ? " active"
+                    : "");
+
+            button.textContent =
+                conversation.title || "Nueva conversación";
+
+            button.addEventListener("click", () => {
+                currentConversationId = conversation.id;
+
+                renderConversationList();
+                renderConversation();
+
+                sidebar?.classList.remove("open");
+            });
+
+            conversationList.appendChild(button);
+        });
+    }
+
+    function renderConversation() {
+        const conversation = getCurrentConversation();
+
+        if (!conversation) {
+            renderWelcome();
+            chatTitle.textContent = "Nueva conversación";
+            return;
+        }
+
+        chatTitle.textContent =
+            conversation.title || "Nueva conversación";
+
+        messages.innerHTML = "";
+
+        if (!conversation.messages.length) {
+            renderWelcome();
+            return;
+        }
+
+        conversation.messages.forEach(message => {
+            renderMessage(message.role, message.content);
+        });
+
+        scrollToBottom();
+    }
+
+    function renderWelcome() {
+        messages.innerHTML = `
+            <div class="welcome-message">
+                <div class="welcome-logo">B</div>
+
+                <h1>¿Qué hacemos hoy?</h1>
+
+                <p>
+                    Soy Byte, el asistente de DreamByte Studios.
+                </p>
+
+                <div class="suggestions">
+
+                    <button
+                        class="suggestion"
+                        data-prompt="Dame ideas para un proyecto tecnológico."
+                    >
+                        💡 Ideas para proyectos
+                    </button>
+
+                    <button
+                        class="suggestion"
+                        data-prompt="Ayúdame a programar una aplicación."
+                    >
+                        💻 Programar una app
+                    </button>
+
+                    <button
+                        class="suggestion"
+                        data-prompt="Ayúdame a escribir un guion."
+                    >
+                        🎬 Crear un guion
+                    </button>
+
+                    <button
+                        class="suggestion"
+                        data-prompt="Explícame un concepto de programación de forma sencilla."
+                    >
+                        🧠 Aprender algo
+                    </button>
+
+                </div>
+            </div>
+        `;
+
+        document.querySelectorAll(".suggestion").forEach(button => {
+            button.addEventListener("click", () => {
+                messageInput.value = button.dataset.prompt;
+                messageInput.focus();
+            });
+        });
+    }
+
+    /* =====================================================
+       MENSAJES
+       ===================================================== */
+
+    function renderMessage(role, content) {
+        const wrapper = document.createElement("div");
+
+        wrapper.className =
+            role === "user"
+                ? "message message-user"
+                : "message message-assistant";
+
+        const bubble = document.createElement("div");
+        bubble.className = "message-bubble";
+
+        if (role === "user") {
+            bubble.textContent = content;
+        } else {
+            bubble.innerHTML = renderMarkdown(content);
+        }
+
+        wrapper.appendChild(bubble);
+        messages.appendChild(wrapper);
+
+        if (role === "assistant") {
+            addCodeTools(bubble);
+        }
+    }
+
+    function renderMarkdown(content) {
+        if (!window.marked) {
+            return escapeHTML(content).replace(/\n/g, "<br>");
+        }
+
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        const html = marked.parse(content);
+
+        if (window.DOMPurify) {
+            return DOMPurify.sanitize(html, {
+                ADD_ATTR: ["target"]
+            });
+        }
+
+        return html;
+    }
+
+    /* =====================================================
+       CÓDIGO — COPIAR + HTML
+       ===================================================== */
+
+    function addCodeTools(container) {
+        const blocks = container.querySelectorAll("pre");
+
+        blocks.forEach(pre => {
+            if (pre.dataset.enhanced === "true") return;
+
+            pre.dataset.enhanced = "true";
+
+            const code = pre.querySelector("code");
+
+            if (!code) return;
+
+            const toolbar = document.createElement("div");
+            toolbar.className = "code-toolbar";
+
+            const language =
+                [...code.classList]
+                    .find(className =>
+                        className.startsWith("language-")
+                    )
+                    ?.replace("language-", "") || "";
+
+            const languageLabel = document.createElement("span");
+
+            languageLabel.textContent =
+                language || "code";
+
+            const actions = document.createElement("div");
+            actions.className = "code-actions";
+
+            const copyButton = document.createElement("button");
+
+            copyButton.type = "button";
+            copyButton.className = "code-action";
+            copyButton.title = "Copiar código";
+            copyButton.innerHTML = "⧉";
+
+            copyButton.addEventListener("click", async () => {
+                try {
+                    await navigator.clipboard.writeText(
+                        code.textContent
+                    );
+
+                    copyButton.textContent = "✓";
+
+                    setTimeout(() => {
+                        copyButton.textContent = "⧉";
+                    }, 1500);
+                } catch (error) {
+                    console.error("No se pudo copiar:", error);
+                }
+            });
+
+            actions.appendChild(copyButton);
+
+            const normalizedLanguage = language.toLowerCase();
 
             if (
-                event.key === "Enter" &&
-                !event.shiftKey
+                normalizedLanguage === "html" ||
+                normalizedLanguage === "htm"
             ) {
+                const previewButton =
+                    document.createElement("button");
 
-                event.preventDefault();
+                previewButton.type = "button";
+                previewButton.className = "code-action";
+                previewButton.title = "Ejecutar HTML";
+                previewButton.innerHTML = "▶";
 
-                chatForm.requestSubmit();
+                previewButton.addEventListener("click", () => {
+                    openHTMLPreview(code.textContent);
+                });
 
+                actions.appendChild(previewButton);
             }
 
-        }
-    );
+            toolbar.appendChild(languageLabel);
+            toolbar.appendChild(actions);
 
-    document
-        .querySelectorAll(".suggestion")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    messageInput.value =
-                        button.dataset.prompt;
-
-                    messageInput.focus();
-
-                }
-            );
-
+            pre.prepend(toolbar);
         });
+    }
 
-    messages.addEventListener(
-        "click",
-        handleMessageActions
-    );
+    function openHTMLPreview(html) {
+        if (!previewModal || !previewFrame) return;
 
-}
+        previewFrame.srcdoc = html;
+        previewModal.classList.remove("hidden");
+    }
 
+    closePreview?.addEventListener("click", () => {
+        previewModal?.classList.add("hidden");
 
-/* =========================================================
-   AUTH
-========================================================= */
-
-async function loginWithGoogle() {
-
-    const {
-        error
-    } = await supabaseClient.auth.signInWithOAuth({
-
-        provider: "google",
-
-        options: {
-
-            redirectTo:
-                window.location.origin +
-                window.location.pathname
-
+        if (previewFrame) {
+            previewFrame.srcdoc = "";
         }
-
     });
 
-    if (error) {
+    previewModal?.addEventListener("click", event => {
+        if (event.target === previewModal) {
+            previewModal.classList.add("hidden");
 
-        showAuthError(error.message);
+            if (previewFrame) {
+                previewFrame.srcdoc = "";
+            }
+        }
+    });
 
-    }
+    /* =====================================================
+       SCROLL
+       ===================================================== */
 
-}
-
-
-async function loginWithEmail(event) {
-
-    event.preventDefault();
-
-    const email =
-        document
-            .getElementById("email")
-            .value
-            .trim();
-
-    const password =
-        document
-            .getElementById("password")
-            .value;
-
-    setAuthMessage("Iniciando sesión...");
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient.auth.signInWithPassword({
-            email,
-            password
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            messages.scrollTop = messages.scrollHeight;
         });
-
-    if (error) {
-
-        showAuthError(error.message);
-
-        return;
-
     }
 
-    currentUser =
-        data.user;
+    /* =====================================================
+       LOGIN — GOOGLE
+       ===================================================== */
 
-    isIncognito = false;
+    googleLogin?.addEventListener("click", async () => {
+        setAuthMessage("Abriendo Google...");
 
-    enterApplication();
+        googleLogin.disabled = true;
 
-}
+        try {
+            const redirectTo =
+                window.location.origin +
+                window.location.pathname;
 
+            const { error } =
+                await supabaseClient.auth.signInWithOAuth({
+                    provider: "google",
+                    options: {
+                        redirectTo
+                    }
+                });
 
-async function signup() {
+            if (error) {
+                throw error;
+            }
+        } catch (error) {
+            console.error(error);
 
-    const email =
-        document
-            .getElementById("email")
-            .value
-            .trim();
+            setAuthMessage(
+                "No se pudo iniciar sesión con Google: " +
+                (error.message || "Error desconocido"),
+                "error"
+            );
 
-    const password =
-        document
-            .getElementById("password")
-            .value;
+            googleLogin.disabled = false;
+        }
+    });
 
-    if (!email || !password) {
+    /* =====================================================
+       LOGIN — CORREO
+       ===================================================== */
 
-        showAuthError(
-            "Escribe un correo y una contraseña."
-        );
+    emailForm?.addEventListener("submit", async event => {
+        event.preventDefault();
 
-        return;
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
 
+        if (!email || !password) return;
+
+        setAuthMessage("Iniciando sesión...");
+
+        const submitButton =
+            emailForm.querySelector('button[type="submit"]');
+
+        if (submitButton) submitButton.disabled = true;
+
+        try {
+            const { data, error } =
+                await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data?.user) {
+                currentUser = data.user;
+                isIncognito = false;
+
+                enterApplication();
+            }
+        } catch (error) {
+            console.error(error);
+
+            setAuthMessage(
+                translateAuthError(error),
+                "error"
+            );
+        } finally {
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+        }
+    });
+
+    /* =====================================================
+       REGISTRO
+       ===================================================== */
+
+    signupButton?.addEventListener("click", async () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            setAuthMessage(
+                "Escribe primero tu correo y una contraseña."
+            );
+            return;
+        }
+
+        if (password.length < 6) {
+            setAuthMessage(
+                "La contraseña debe tener al menos 6 caracteres.",
+                "error"
+            );
+            return;
+        }
+
+        setAuthMessage("Creando cuenta...");
+
+        signupButton.disabled = true;
+
+        try {
+            const { data, error } =
+                await supabaseClient.auth.signUp({
+                    email,
+                    password
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data?.session && data?.user) {
+                currentUser = data.user;
+                isIncognito = false;
+
+                enterApplication();
+            } else {
+                setAuthMessage(
+                    "Cuenta creada. Revisa tu correo para confirmar la cuenta."
+                );
+            }
+        } catch (error) {
+            console.error(error);
+
+            setAuthMessage(
+                translateAuthError(error),
+                "error"
+            );
+        } finally {
+            signupButton.disabled = false;
+        }
+    });
+
+    /* =====================================================
+       INCÓGNITO
+       ===================================================== */
+
+    guestLogin?.addEventListener("click", async () => {
+        setAuthMessage("Entrando como incógnito...");
+
+        guestLogin.disabled = true;
+
+        try {
+            /*
+             * Supabase Anonymous Auth crea una sesión temporal
+             * con JWT. Por eso tu Edge Function `chat`, que
+             * tiene verify_jwt=true, puede seguir protegida.
+             */
+
+            const { data, error } =
+                await supabaseClient.auth.signInAnonymously();
+
+            if (error) {
+                throw error;
+            }
+
+            if (!data?.user || !data?.session) {
+                throw new Error(
+                    "Supabase no devolvió una sesión anónima."
+                );
+            }
+
+            currentUser = data.user;
+            isIncognito = true;
+
+            enterApplication();
+        } catch (error) {
+            console.error(error);
+
+            setAuthMessage(
+                "No se pudo entrar como incógnito: " +
+                (error.message || "Error desconocido"),
+                "error"
+            );
+        } finally {
+            guestLogin.disabled = false;
+        }
+    });
+
+    /* =====================================================
+       SESIÓN EXISTENTE
+       ===================================================== */
+
+    async function restoreSession() {
+        try {
+            const { data, error } =
+                await supabaseClient.auth.getSession();
+
+            if (error) {
+                console.error(error);
+                showLogin();
+                return;
+            }
+
+            const session = data?.session;
+
+            if (!session?.user) {
+                showLogin();
+                return;
+            }
+
+            currentUser = session.user;
+
+            /*
+             * Los usuarios anónimos de Supabase tienen
+             * is_anonymous dentro de app_metadata.
+             */
+            isIncognito =
+                currentUser.is_anonymous === true ||
+                currentUser.app_metadata?.provider === "anonymous";
+
+            enterApplication();
+        } catch (error) {
+            console.error("Error restaurando sesión:", error);
+            showLogin();
+        }
     }
 
-    setAuthMessage(
-        "Creando cuenta..."
+    supabaseClient.auth.onAuthStateChange(
+        (_event, session) => {
+            if (!session?.user) {
+                return;
+            }
+
+            currentUser = session.user;
+
+            isIncognito =
+                currentUser.is_anonymous === true ||
+                currentUser.app_metadata?.provider === "anonymous";
+        }
     );
 
-    const {
-        error
-    } =
-        await supabaseClient.auth.signUp({
-            email,
-            password
-        });
+    /* =====================================================
+       ENTRAR A LA APP
+       ===================================================== */
 
-    if (error) {
+    function enterApplication() {
+        showApp();
 
-        showAuthError(error.message);
+        loadUserConversations();
 
-        return;
+        if (conversations.length === 0) {
+            createConversation();
+        } else {
+            currentConversationId = conversations[0].id;
 
+            renderConversationList();
+            renderConversation();
+        }
+
+        updateAccountInfo();
     }
 
-    setAuthMessage(
-        "Cuenta creada. Revisa tu correo para confirmarla."
-    );
+    function updateAccountInfo() {
+        if (!accountInfo) return;
 
-}
+        if (isIncognito) {
+            accountInfo.innerHTML = `
+                <strong>👻 Modo incógnito</strong>
+                <small>
+                    Las conversaciones se guardan temporalmente
+                    en este navegador.
+                </small>
+            `;
 
+            return;
+        }
 
-async function logout() {
+        const name = getUserName(currentUser);
 
-    if (isIncognito) {
+        accountInfo.innerHTML = `
+            <strong>${escapeHTML(name)}</strong>
+            <small>
+                ${escapeHTML(currentUser?.email || "")}
+            </small>
+        `;
+    }
+
+    /* =====================================================
+       LOGOUT
+       ===================================================== */
+
+    logoutButton?.addEventListener("click", async () => {
+        try {
+            await supabaseClient.auth.signOut();
+        } catch (error) {
+            console.error(error);
+        }
 
         currentUser = null;
         isIncognito = false;
+        currentConversationId = null;
+        conversations = [];
 
         showLogin();
 
-        return;
+        emailInput.value = "";
+        passwordInput.value = "";
 
-    }
-
-    await supabaseClient.auth.signOut();
-
-    currentUser = null;
-
-    isIncognito = false;
-
-    showLogin();
-
-}
-
-
-/* =========================================================
-   INCOGNITO
-========================================================= */
-
-function enterIncognito() {
-
-    currentUser = null;
-
-    isIncognito = true;
-
-    conversationHistory = [];
-
-    currentConversationId =
-        crypto.randomUUID();
-
-    enterApplication();
-
-    loadIncognitoConversations();
-
-}
-
-
-function getIncognitoConversations() {
-
-    try {
-
-        return JSON.parse(
-            localStorage.getItem(
-                LOCAL_STORAGE_KEY
-            ) || "[]"
-        );
-
-    } catch {
-
-        return [];
-
-    }
-
-}
-
-
-function saveIncognitoConversation() {
-
-    const conversations =
-        getIncognitoConversations();
-
-    const existingIndex =
-        conversations.findIndex(
-            conversation =>
-                conversation.id ===
-                currentConversationId
-        );
-
-    const conversation = {
-
-        id:
-            currentConversationId,
-
-        title:
-            getConversationTitle(),
-
-        messages:
-            conversationHistory,
-
-        updatedAt:
-            Date.now()
-
-    };
-
-    if (existingIndex >= 0) {
-
-        conversations[existingIndex] =
-            conversation;
-
-    } else {
-
-        conversations.unshift(
-            conversation
-        );
-
-    }
-
-    localStorage.setItem(
-        LOCAL_STORAGE_KEY,
-        JSON.stringify(
-            conversations.slice(0, 50)
-        )
-    );
-
-    loadIncognitoConversations();
-
-}
-
-
-function loadIncognitoConversations() {
-
-    if (!isIncognito)
-        return;
-
-    conversationList.innerHTML = "";
-
-    const conversations =
-        getIncognitoConversations();
-
-    conversations.forEach(
-        conversation => {
-
-            const item =
-                document.createElement("div");
-
-            item.className =
-                "conversation-item";
-
-            item.textContent =
-                conversation.title ||
-                "Nueva conversación";
-
-            item.addEventListener(
-                "click",
-                () => {
-
-                    currentConversationId =
-                        conversation.id;
-
-                    conversationHistory =
-                        conversation.messages || [];
-
-                    renderHistory();
-
-                }
-            );
-
-            conversationList.appendChild(
-                item
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   APPLICATION
-========================================================= */
-
-function enterApplication() {
-
-    loginScreen.classList.add(
-        "hidden"
-    );
-
-    appScreen.classList.remove(
-        "hidden"
-    );
-
-    if (isIncognito) {
-
-        document
-            .getElementById("account-info")
-            .innerHTML =
-            "👻 <strong>Modo incógnito</strong>";
-
-        document
-            .getElementById("logout-button")
-            .textContent =
-            "↩ Salir del incógnito";
-
-    } else {
-
-        document
-            .getElementById("account-info")
-            .innerHTML =
-            `👤 ${
-                escapeHTML(
-                    currentUser?.email ||
-                    "Usuario"
-                )
-            }`;
-
-        document
-            .getElementById("logout-button")
-            .textContent =
-            "↪ Cerrar sesión";
-
-    }
-
-    if (!conversationHistory.length) {
-
-        newConversation();
-
-    }
-
-}
-
-
-function showLogin() {
-
-    appScreen.classList.add(
-        "hidden"
-    );
-
-    loginScreen.classList.remove(
-        "hidden"
-    );
-
-    conversationHistory = [];
-
-}
-
-
-/* =========================================================
-   CONVERSATIONS
-========================================================= */
-
-function newConversation() {
-
-    currentConversationId =
-        crypto.randomUUID();
-
-    conversationHistory = [];
-
-    document
-        .getElementById("chat-title")
-        .textContent =
-        "Nueva conversación";
-
-    messages.innerHTML = `
-        <div class="welcome-message">
-
-            <div class="welcome-logo">B</div>
-
-            <h1>¿Qué hacemos hoy?</h1>
-
-            <p>
-                Soy Byte, el asistente de DreamByte Studios.
-            </p>
-
-            <div class="suggestions">
-
-                <button
-                    class="suggestion"
-                    data-prompt="Dame ideas para un proyecto tecnológico."
-                >
-                    💡 Ideas para proyectos
-                </button>
-
-                <button
-                    class="suggestion"
-                    data-prompt="Ayúdame a programar una aplicación."
-                >
-                    💻 Programar una app
-                </button>
-
-                <button
-                    class="suggestion"
-                    data-prompt="Ayúdame a escribir un guion."
-                >
-                    🎬 Crear un guion
-                </button>
-
-            </div>
-
-        </div>
-    `;
-
-    messages
-        .querySelectorAll(".suggestion")
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    messageInput.value =
-                        button.dataset.prompt;
-
-                    messageInput.focus();
-
-                }
-            );
-
-        });
-
-}
-
-
-/* =========================================================
-   SEND MESSAGE
-========================================================= */
-
-async function sendMessage(event) {
-
-    event.preventDefault();
-
-    const text =
-        messageInput.value.trim();
-
-    if (!text)
-        return;
-
-    messageInput.value = "";
-
-    removeWelcome();
-
-    addMessage(
-        "user",
-        text
-    );
-
-    conversationHistory.push({
-
-        role: "user",
-
-        content: text
-
+        setAuthMessage("");
     });
 
-    setLoading(true);
+    /* =====================================================
+       NUEVA CONVERSACIÓN
+       ===================================================== */
 
-    const loadingId =
-        addLoadingMessage();
+    newChatButton?.addEventListener("click", () => {
+        createConversation();
 
-    try {
+        sidebar?.classList.remove("open");
 
-        let response;
+        messageInput?.focus();
+    });
 
-        if (isIncognito) {
+    /* =====================================================
+       ENVIAR MENSAJE
+       ===================================================== */
 
-            /*
-             * El modo incógnito no tiene JWT.
-             *
-             * Por eso aquí hacemos una petición directa
-             * solamente si tu backend permite acceso anónimo.
-             *
-             * Si tu Edge Function mantiene verify_jwt=true,
-             * deberás crear posteriormente un endpoint separado
-             * para invitados con rate limiting.
-             */
+    chatForm?.addEventListener("submit", async event => {
+        event.preventDefault();
 
-            response =
-                await fetch(
-                    `${SUPABASE_URL}/functions/v1/chat`,
-                    {
-                        method: "POST",
+        if (sending) return;
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
+        const content = messageInput.value.trim();
 
-                        body: JSON.stringify({
-                            messages:
-                                conversationHistory
-                        })
-                    }
-                );
+        if (!content) return;
 
-        } else {
+        const conversation =
+            getCurrentConversation() ||
+            createConversation();
 
-            const {
-                data: {
-                    session
-                }
-            } =
-                await supabaseClient.auth.getSession();
+        if (!conversation) return;
 
-            if (!session) {
+        sending = true;
 
-                throw new Error(
-                    "La sesión ha expirado."
-                );
+        sendButton.disabled = true;
+        messageInput.disabled = true;
 
-            }
+        /*
+         * Primer mensaje = título automático.
+         */
+        if (conversation.messages.length === 0) {
+            conversation.title =
+                content.length > 40
+                    ? content.substring(0, 40) + "…"
+                    : content;
 
-            response =
-                await fetch(
-                    `${SUPABASE_URL}/functions/v1/chat`,
-                    {
-                        method: "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json",
-
-                            "Authorization":
-                                `Bearer ${session.access_token}`
-
-                        },
-
-                        body: JSON.stringify({
-                            messages:
-                                conversationHistory
-                        })
-                    }
-                );
-
+            chatTitle.textContent = conversation.title;
         }
 
-
-        if (!response.ok) {
-
-            const errorText =
-                await response.text();
-
-            throw new Error(
-                errorText ||
-                `Error HTTP ${response.status}`
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        const answer =
-            data?.choices?.[0]?.message?.content;
-
-
-        if (!answer) {
-
-            throw new Error(
-                "Byte no devolvió una respuesta."
-            );
-
-        }
-
-
-        removeLoadingMessage(
-            loadingId
-        );
-
-        addMessage(
-            "assistant",
-            answer
-        );
-
-        conversationHistory.push({
-
-            role: "assistant",
-
-            content: answer
-
+        conversation.messages.push({
+            role: "user",
+            content
         });
 
+        messageInput.value = "";
 
-        if (isIncognito) {
+        renderConversationList();
+        renderConversation();
 
-            saveIncognitoConversation();
+        saveConversations();
 
-        }
-
-
-        updateConversationTitle();
-
-    } catch (error) {
-
-        removeLoadingMessage(
-            loadingId
-        );
-
-        addMessage(
-            "assistant",
-            `⚠️ No pude completar la respuesta.\n\n${error.message}`
-        );
-
-    } finally {
-
-        setLoading(false);
-
-    }
-
-}
-
-
-/* =========================================================
-   MESSAGES
-========================================================= */
-
-function addMessage(role, content) {
-
-    const wrapper =
-        document.createElement("article");
-
-    wrapper.className =
-        `message ${role}`;
-
-    const avatar =
-        role === "assistant"
-            ? "B"
-            : "👤";
-
-    wrapper.innerHTML = `
-
-        <div class="message-avatar">
-            ${avatar}
-        </div>
-
-        <div class="message-content">
-            ${
-                role === "assistant"
-                    ? renderMarkdown(content)
-                    : escapeHTML(content).replace(
-                        /\n/g,
-                        "<br>"
-                    )
-            }
-        </div>
-
-    `;
-
-    messages.appendChild(wrapper);
-
-    messages.scrollTop =
-        messages.scrollHeight;
-
-    return wrapper;
-
-}
-
-
-function renderHistory() {
-
-    messages.innerHTML = "";
-
-    conversationHistory.forEach(
-        message => {
-
-            addMessage(
-                message.role,
-                message.content
-            );
-
-        }
-    );
-
-}
-
-
-function removeWelcome() {
-
-    const welcome =
-        messages.querySelector(
-            ".welcome-message"
-        );
-
-    if (welcome)
-        welcome.remove();
-
-}
-
-
-function addLoadingMessage() {
-
-    const id =
-        "loading-" +
-        Date.now();
-
-    const element =
-        document.createElement("article");
-
-    element.id = id;
-
-    element.className =
-        "message assistant loading-message";
-
-    element.innerHTML = `
-
-        <div class="message-avatar">
-            B
-        </div>
-
-        <div class="message-content">
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-        </div>
-
-    `;
-
-    messages.appendChild(
-        element
-    );
-
-    messages.scrollTop =
-        messages.scrollHeight;
-
-    return id;
-
-}
-
-
-function removeLoadingMessage(id) {
-
-    document
-        .getElementById(id)
-        ?.remove();
-
-}
-
-
-/* =========================================================
-   MARKDOWN + CODE
-========================================================= */
-
-function renderMarkdown(content) {
-
-    const raw =
-        marked.parse(content, {
-            breaks: true
-        });
-
-
-    const clean =
-        DOMPurify.sanitize(
-            raw,
-            {
-                ADD_TAGS: [
-                    "button"
-                ],
-
-                ADD_ATTR: [
-                    "class",
-                    "data-code",
-                    "data-language"
-                ]
-            }
-        );
-
-
-    const container =
-        document.createElement("div");
-
-    container.innerHTML =
-        clean;
-
-
-    container
-        .querySelectorAll("pre")
-        .forEach(pre => {
-
-            const code =
-                pre.querySelector("code");
-
-            if (!code)
-                return;
-
-            const language =
-                getLanguage(
-                    code.className
-                );
-
-            const codeText =
-                code.textContent;
-
-
-            const toolbar =
-                document.createElement("div");
-
-            toolbar.className =
-                "code-toolbar";
-
-
-            const label =
-                document.createElement("span");
-
-            label.textContent =
-                language || "code";
-
-
-            const actions =
-                document.createElement("div");
-
-
-            const copyButton =
-                document.createElement("button");
-
-            copyButton.className =
-                "code-action";
-
-            copyButton.dataset.code =
-                codeText;
-
-            copyButton.textContent =
-                "📋 Copiar";
-
-
-            actions.appendChild(
-                copyButton
-            );
-
-
-            if (
-                language === "html" ||
-                language === "html5"
-            ) {
-
-                const runButton =
-                    document.createElement("button");
-
-                runButton.className =
-                    "code-action run-html";
-
-                runButton.dataset.code =
-                    codeText;
-
-                runButton.textContent =
-                    "▶ Ejecutar";
-
-                actions.appendChild(
-                    runButton
-                );
-
-            }
-
-
-            toolbar.appendChild(
-                label
-            );
-
-            toolbar.appendChild(
-                actions
-            );
-
-
-            pre.parentNode.insertBefore(
-                toolbar,
-                pre
-            );
-
-        });
-
-
-    return container.innerHTML;
-
-}
-
-
-function getLanguage(className = "") {
-
-    const match =
-        className.match(
-            /language-([\w-]+)/
-        );
-
-    return match
-        ? match[1].toLowerCase()
-        : "";
-
-}
-
-
-/* =========================================================
-   CODE ACTIONS
-========================================================= */
-
-async function handleMessageActions(event) {
-
-    const copyButton =
-        event.target.closest(
-            ".code-action:not(.run-html)"
-        );
-
-    if (copyButton) {
+        const typing = showTypingIndicator();
 
         try {
+            const history = conversation.messages.map(message => ({
+                role: message.role,
+                content: message.content
+            }));
 
-            await navigator.clipboard.writeText(
-                copyButton.dataset.code
+            const response =
+                await supabaseClient.functions.invoke(
+                    "chat",
+                    {
+                        body: {
+                            messages: history
+                        }
+                    }
+                );
+
+            if (response.error) {
+                throw response.error;
+            }
+
+            const data = response.data;
+
+            const answer =
+                extractAIResponse(data);
+
+            if (!answer) {
+                throw new Error(
+                    "Byte no devolvió ningún mensaje."
+                );
+            }
+
+            conversation.messages.push({
+                role: "assistant",
+                content: answer
+            });
+
+            saveConversations();
+
+            typing.remove();
+
+            renderConversationList();
+            renderConversation();
+
+        } catch (error) {
+            console.error("Error del chat:", error);
+
+            typing.remove();
+
+            const errorText =
+                "No pude conectarme con Byte en este momento.\n\n" +
+                "Error: " +
+                (error.message || "Error desconocido");
+
+            conversation.messages.push({
+                role: "assistant",
+                content: errorText
+            });
+
+            saveConversations();
+
+            renderConversation();
+        } finally {
+            sending = false;
+
+            sendButton.disabled = false;
+            messageInput.disabled = false;
+
+            messageInput.focus();
+        }
+    });
+
+    /* =====================================================
+       RESPUESTA DE LA EDGE FUNCTION
+       ===================================================== */
+
+    function extractAIResponse(data) {
+        if (!data) return "";
+
+        /*
+         * Formato actual de tu función:
+         * {
+         *   choices: [
+         *     {
+         *       message: {
+         *         content: "..."
+         *       }
+         *     }
+         *   ]
+         * }
+         */
+
+        if (
+            data.choices &&
+            data.choices[0]?.message?.content
+        ) {
+            return data.choices[0].message.content;
+        }
+
+        /*
+         * Compatibilidad por si la función devuelve:
+         * { content: "..." }
+         */
+
+        if (typeof data.content === "string") {
+            return data.content;
+        }
+
+        /*
+         * Compatibilidad adicional.
+         */
+
+        if (
+            data.message &&
+            typeof data.message.content === "string"
+        ) {
+            return data.message.content;
+        }
+
+        return "";
+    }
+
+    /* =====================================================
+       TYPING
+       ===================================================== */
+
+    function showTypingIndicator() {
+        const wrapper = document.createElement("div");
+
+        wrapper.className =
+            "message message-assistant typing-message";
+
+        wrapper.innerHTML = `
+            <div class="message-bubble typing-bubble">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        `;
+
+        messages.appendChild(wrapper);
+
+        scrollToBottom();
+
+        return wrapper;
+    }
+
+    /* =====================================================
+       TEXTAREA
+       ===================================================== */
+
+    messageInput?.addEventListener("input", () => {
+        messageInput.style.height = "auto";
+
+        messageInput.style.height =
+            Math.min(messageInput.scrollHeight, 180) + "px";
+    });
+
+    messageInput?.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+
+            chatForm.requestSubmit();
+        }
+    });
+
+    /* =====================================================
+       SETTINGS
+       ===================================================== */
+
+    settingsButton?.addEventListener("click", () => {
+        settingsPanel?.classList.remove("hidden");
+    });
+
+    closeSettings?.addEventListener("click", () => {
+        settingsPanel?.classList.add("hidden");
+    });
+
+    /* =====================================================
+       BORRAR HISTORIAL LOCAL
+       ===================================================== */
+
+    clearIncognito?.addEventListener("click", () => {
+        const confirmed = confirm(
+            "¿Quieres borrar las conversaciones guardadas en este navegador?"
+        );
+
+        if (!confirmed) return;
+
+        localStorage.removeItem(LOCAL_KEY);
+
+        if (isIncognito) {
+            conversations = [];
+            currentConversationId = null;
+
+            createConversation();
+        }
+
+        setAuthMessage("");
+    });
+
+    /* =====================================================
+       MENÚ MÓVIL
+       ===================================================== */
+
+    mobileMenu?.addEventListener("click", () => {
+        sidebar?.classList.toggle("open");
+    });
+
+    /* =====================================================
+       ERRORES DE AUTENTICACIÓN
+       ===================================================== */
+
+    function translateAuthError(error) {
+        const message =
+            String(error?.message || "").toLowerCase();
+
+        if (message.includes("invalid login credentials")) {
+            return "Correo o contraseña incorrectos.";
+        }
+
+        if (message.includes("email not confirmed")) {
+            return "Primero confirma tu correo electrónico.";
+        }
+
+        if (message.includes("user already registered")) {
+            return "Ese correo ya tiene una cuenta.";
+        }
+
+        if (message.includes("password")) {
+            return (
+                error.message ||
+                "La contraseña no es válida."
             );
-
-            copyButton.textContent =
-                "✓ Copiado";
-
-            setTimeout(() => {
-
-                copyButton.textContent =
-                    "📋 Copiar";
-
-            }, 1500);
-
-        } catch {
-
-            copyButton.textContent =
-                "No disponible";
-
         }
 
-        return;
-
+        return (
+            error?.message ||
+            "No se pudo completar la operación."
+        );
     }
 
-
-    const runButton =
-        event.target.closest(
-            ".run-html"
-        );
-
-    if (runButton) {
-
-        openHTMLPreview(
-            runButton.dataset.code
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   HTML PREVIEW
-========================================================= */
-
-function openHTMLPreview(code) {
-
-    /*
-     * sandbox="allow-scripts" permite que el HTML tenga
-     * JavaScript propio, pero evita darle acceso al documento
-     * principal de Byte AI.
-     */
-
-    htmlPreview.srcdoc = code;
-
-    previewModal.classList.remove(
-        "hidden"
-    );
-
-}
-
-
-function closePreview() {
-
-    htmlPreview.srcdoc = "";
-
-    previewModal.classList.add(
-        "hidden"
-    );
-
-}
-
-
-/* =========================================================
-   THEME
-========================================================= */
-
-function changeTheme(event) {
-
-    const theme =
-        event.target.value;
-
-    document.body.className =
-        theme;
-
-    localStorage.setItem(
-        THEME_STORAGE_KEY,
-        theme
-    );
-
-}
-
-
-function loadTheme() {
-
-    const saved =
-        localStorage.getItem(
-            THEME_STORAGE_KEY
-        );
-
-    if (!saved)
-        return;
-
-    document.body.className =
-        saved;
-
-    const selector =
-        document.getElementById(
-            "theme-selector"
-        );
-
-    if (selector)
-        selector.value = saved;
-
-}
-
-
-/* =========================================================
-   INCÓGNITO CLEANUP
-========================================================= */
-
-function clearIncognito() {
-
-    if (!isIncognito)
-        return;
-
-    localStorage.removeItem(
-        LOCAL_STORAGE_KEY
-    );
-
-    conversationHistory = [];
-
-    conversationList.innerHTML = "";
-
-    newConversation();
-
-}
-
-
-/* =========================================================
-   TITLES
-========================================================= */
-
-function getConversationTitle() {
-
-    const firstUserMessage =
-        conversationHistory.find(
-            message =>
-                message.role === "user"
-        );
-
-    if (!firstUserMessage)
-        return "Nueva conversación";
-
-    return firstUserMessage.content
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 50);
-
-}
-
-
-function updateConversationTitle() {
-
-    document
-        .getElementById("chat-title")
-        .textContent =
-        getConversationTitle();
-
-}
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function setLoading(value) {
-
-    sendButton.disabled =
-        value;
-
-    messageInput.disabled =
-        value;
-
-}
-
-
-function setAuthMessage(message) {
-
-    authMessage.textContent =
-        message;
-
-}
-
-
-function showAuthError(message) {
-
-    authMessage.textContent =
-        `⚠️ ${message}`;
-
-}
-
-
-function escapeHTML(value) {
-
-    const div =
-        document.createElement("div");
-
-    div.textContent =
-        value;
-
-    return div.innerHTML;
-
-}
-
-
-/* =========================================================
-   AUTH STATE
-========================================================= */
-
-supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-
-        if (
-            event === "SIGNED_IN" &&
-            session
-        ) {
-
-            currentUser =
-                session.user;
-
-            isIncognito = false;
-
-            enterApplication();
-
-        }
-
-        if (
-            event === "SIGNED_OUT"
-        ) {
-
-            currentUser = null;
-
-            if (!isIncognito)
-                showLogin();
-
-        }
-
-    }
-);
+    /* =====================================================
+       INICIO
+       ===================================================== */
+
+    restoreSession();
+});
